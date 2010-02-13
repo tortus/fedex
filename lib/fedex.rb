@@ -434,8 +434,34 @@ module Fedex #:nodoc:
         :Weight => {
           :Units => @units,
           :Value => options[:weight]
+        },
+        :SpecialServicesRequested => {
+          :SpecialServiceTypes => []
         }
       }
+      
+      if options[:dry_ice]
+        dry_ice_type = options[:dry_ice_type] || PackageSpecialServiceTypes::DRY_ICE
+        line_items[:SpecialServicesRequested][:SpecialServiceTypes] << dry_ice_type
+
+        line_items[:SpecialServicesRequested].merge!(
+          :DryIceWeight => {
+            :Units => options[:dry_ice_weight_units] || WeightUnits::KG,
+            :Value => options[:dry_ice_weight]
+          }
+        )
+      end
+      if options[:dangerous_goods]
+        dangerous_goods_type = options[:dangerous_goods_type] || PackageSpecialServiceTypes::DANGEROUS_GOODS
+        line_items[:SpecialServicesRequested][:SpecialServiceTypes] << dangerous_goods_type
+
+        line_items[:SpecialServicesRequested].merge!(
+          :DangerousGoodsDetail => {
+            :Accessibility => options[:dangerous_goods_accessibility] || DangerousGoodsAccessibilityTypes::INACCESSIBLE
+          }
+        )
+      end
+
       [line_items]
     end
 
