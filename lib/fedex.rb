@@ -43,7 +43,7 @@ module Fedex #:nodoc:
     }
     
     # Defines the Web Services version implemented.
-    WS_VERSION = { :Major => 7, :Intermediate => 0, :Minor => 0, :ServiceId => 'crs' }
+    WS_VERSION = { :Major => 7, :Intermediate => 0, :Minor => 0 }
     
     SUCCESSFUL_RESPONSES = ['SUCCESS', 'WARNING', 'NOTE'] #:nodoc:
     
@@ -148,88 +148,26 @@ module Fedex #:nodoc:
     #    :zip => '20500'
     #  }
     def price(options = {})
+      puts options.inspect if $DEBUG
+
       # Check overall options
       check_required_options(:price, options)
-      
+
       # Check Address Options
       check_required_options(:contact, options[:shipper][:contact])
       check_required_options(:address, options[:shipper][:address])
-      
+
       # Check Contact Options
       check_required_options(:contact, options[:recipient][:contact])
       check_required_options(:address, options[:recipient][:address])
-            
-      # Prepare variables
-      shipper             = options[:shipper]
-      recipient           = options[:recipient]
-      
-      shipper_contact     = shipper[:contact]
-      shipper_address     = shipper[:address]
-      
-      recipient_contact   = recipient[:contact]
-      recipient_address   = recipient[:address]
-      
-      service_type        = options[:service_type]
-      count               = options[:count] || 1
-      weight              = options[:weight]
-                          
-      residential         = !!recipient_address[:residential]
-                          
-      service_type        = resolve_service_type(service_type, residential) if service_type
-      
-      # Create the driver
+
+      # Build shipment options
+      options = build_shipment_options(:crs, options) 
+
+      # Process the rate request 
       driver = create_driver(:rate)
-      
-      result = driver.getRates(common_options.merge(
-        :RequestedShipment => {
-          :Shipper => {
-            :Contact => {
-              :PersonName => shipper_contact[:name],
-              :PhoneNumber => shipper_contact[:phone_number]
-            },
-            :Address => {
-              :CountryCode => shipper_address[:country],
-              :StreetLines => shipper_address[:street],
-              :City => shipper_address[:city],
-              :StateOrProvinceCode => shipper_address[:state],
-              :PostalCode => shipper_address[:zip]
-            }
-          },
-          :Recipient => {
-            :Contact => {
-              :PersonName => recipient_contact[:name],
-              :PhoneNumber => recipient_contact[:phone_number]
-            },
-            :Address => {
-              :CountryCode => recipient_address[:country],
-              :StreetLines => recipient_address[:street],
-              :City => recipient_address[:city],
-              :StateOrProvinceCode => recipient_address[:state],
-              :PostalCode => recipient_address[:zip],
-              :Residential => residential
-            }
-          },
-          :ShippingChargesPayment => {
-            :PaymentType => @payment_type,
-            :Payor => {
-              :AccountNumber => @account_number,
-              :CountryCode => shipper_address[:country]
-            }
-          },
-          :RateRequestTypes => @rate_request_type,
-          :PackageCount => count,
-          :DropoffType => @dropoff_type,
-          :ServiceType => service_type,
-          :PackagingType => @packaging_type,
-          :PackageDetail => RequestedPackageDetailTypes::INDIVIDUAL_PACKAGES,
-          :TotalWeight => { :Units => @units, :Value => weight },
-          :RequestedPackageLineItems => [
-            :SequenceNumber => 1,
-            :Weight => { :Units => @units, :Value => weight }
-          ]
-        }
-      ))
-      
+      result = driver.getRates()
+
       extract_price = proc do |reply_detail|
         shipment_details = reply_detail.ratedShipmentDetails
         price = nil
@@ -246,7 +184,7 @@ module Fedex #:nodoc:
           raise "Couldn't find Fedex price in response!"
         end
       end
-      
+
       msg = error_msg(result, false)
       if successful?(result) && msg !~ /There are no valid services available/
         reply_details = result.rateReplyDetails
@@ -260,7 +198,7 @@ module Fedex #:nodoc:
         raise FedexError.new("Unable to retrieve price from Fedex: #{msg}")
       end
     end
-    
+
     # Generate a new shipment and return associated data, including price, tracking number, and the label itself.
     #
     #  fedex = Fedex::Base.new(options)
@@ -283,49 +221,160 @@ module Fedex #:nodoc:
     #             :address => address} # See "Address" for under price.
     def label(options = {})
       puts options.inspect if $DEBUG
+
       # Check overall options
       check_required_options(:label, options)
-      
+
       # Check Address Options
       check_required_options(:contact, options[:shipper][:contact])
       check_required_options(:address, options[:shipper][:address])
-      
+
       # Check Contact Options
       check_required_options(:contact, options[:recipient][:contact])
       check_required_options(:address, options[:recipient][:address])
-      
+
+      # Build shipment options
+      options = build_shipment_options(:ship, options)
+
+     # Process the shipment request
+      driver = create_driver(:ship)
+      result = driver.processShipment(options)
+      successful = successful?(result)
+
+      msg = error_msg(result, false)
+      if successful && msg !~ /There are no valid services available/
+        pre = result.completedShipmentDetail.shipmentRating.shipmentRateDetails
+        charge = ((pre.class == Array ? pre[0].totalNetCharge.amount.to_f : pre.totalNetCharge.amount.to_f) * 100).to_i
+        label = Base64.decode64(result.completedShipmentDetail.completedPackageDetails.label.parts.image)
+        tracking_number = result.completedShipmentDetail.completedPackageDetails.trackingIds.trackingNumber
+        [charge, label, tracking_number]
+      else
+        raise FedexError.new("Unable to get label from Fedex: #{msg}")
+      end
+    end
+
+    # Cancel a shipment
+    #
+    #  fedex = Fedex::Base.new(options)
+    #  result = fedex.cancel(options)
+    #
+    # Returns a boolean indicating whether or not the operation was successful
+    #
+    # === Required options for cancel
+    #   :tracking_number - The Fedex-provided tracking number you wish to cancel
+    def cancel(options = {})
+      check_required_options(:ship_cancel, options)
+
+      tracking_number = options[:tracking_number]
+      #carrier_code    = options[:carrier_code] || carrier_code_for_tracking_number(tracking_number)
+
+      driver = create_driver(:ship)
+
+      result = driver.deleteShipment(common_options(:ship).merge(
+        :TrackingNumber => tracking_number
+      ))
+
+      return successful?(result)
+    end
+
+    private
+
+    # Options that go along with each request
+    # service - :crs or :ship
+    def common_options(service)
+      {
+        :WebAuthenticationDetail => { :UserCredential => { :Key => @auth_key, :Password => @security_code } },
+        :ClientDetail => { :AccountNumber => @account_number, :MeterNumber => @meter_number },
+        :Version => WS_VERSION.merge({:ServiceId => service.to_s})
+      }
+    end
+
+    # Checks the supplied options for a given method or field and throws an exception if anything is missing
+    def check_required_options(option_set_name, options = {})
+      required_options = REQUIRED_OPTIONS[option_set_name]
+      missing = []
+      required_options.each{|option| missing << option if options[option].nil?}
+
+      unless missing.empty?
+        raise MissingInformationError.new("Missing #{missing.collect{|m| ":#{m}"}.join(', ')}")
+      end
+    end
+
+    # Creates and returns a driver for the requested action
+    def create_driver(name)
+      path = File.expand_path(DIR + '/' + WSDL_PATHS[name])
+      wsdl = SOAP::WSDLDriverFactory.new(path)
+      driver = wsdl.create_rpc_driver
+      # /s+(1000|0|9c9|fcc)\s+/ => ""
+      driver.wiredump_dev = STDOUT if @debug
+
+      driver
+    end
+
+    # Resolves the ground+residential discrepancy.  If a package is shipped
+    # via Fedex Groundto an address marked as residential the service type must
+    # be set to ServiceTypes::GROUND_HOME_DELIVERY and not ServiceTypes::FEDEX_GROUND.
+    def resolve_service_type(service_type, residential)
+      if residential && (service_type == ServiceTypes::FEDEX_GROUND)
+        ServiceTypes::GROUND_HOME_DELIVERY
+      else
+        service_type
+      end
+    end
+
+    # Returns a boolean determining whether a request was successful.
+    def successful?(result)
+      if defined?(result.cancelPackageReply)
+        SUCCESSFUL_RESPONSES.any? {|r| r == result.cancelPackageReply.highestSeverity }
+      else
+        SUCCESSFUL_RESPONSES.any? {|r| r == result.highestSeverity }
+      end
+    end
+
+    # Returns the error message contained in the SOAP response, if one exists.
+    def error_msg(result, return_nothing_if_successful=true)
+      return "" if successful?(result) && return_nothing_if_successful
+      notes = result.notifications
+      notes.respond_to?(:message) ? notes.message : notes.first.message
+    end
+
+    # Attempts to determine the carrier code for a tracking number based upon its length.
+    # Currently supports Fedex Ground and Fedex Express
+    def carrier_code_for_tracking_number(tracking_number)
+      case tracking_number.length
+      when 12
+        'FDXE'
+      when 15
+        'FDXG'
+      end
+    end
+
+    def build_shipment_options(service, options)
       # Prepare variables
+      order_number        = options[:order_number] || ''
+
       shipper             = options[:shipper]
       recipient           = options[:recipient]
-      
+
       shipper_contact     = shipper[:contact]
       shipper_address     = shipper[:address]
-      
+
       recipient_contact   = recipient[:contact]
       recipient_address   = recipient[:address]
-      
-      service_type        = options[:service_type]
+
       count               = options[:count] || 1
       weight              = options[:weight]
-      
+
       time                = options[:time] || Time.now
       time                = time.to_time.iso8601 if time.is_a?(Time)
-      
+
       residential         = !!recipient_address[:residential]
-      
-      service_type        = resolve_service_type(service_type, residential)
-      
-      # Create the driver
-      driver = create_driver(:ship)
-      
-      result = driver.processShipment(common_options.merge(
+
+      service_type        = options[:service_type]
+      service_type        = resolve_service_type(service_type, residential) if service_type
+
+      common_options(service||:crs).merge(
         :RequestedShipment => {
-          :ShipTimestamp => time,
-          :DropoffType => @dropoff_type,
-          :ServiceType => service_type,
-          :PackagingType => @packaging_type,
-          :TotalWeight => { :Units => @units, :Value => weight },
-          :PreferredCurrency => @currency,
           :Shipper => {
             :Contact => {
               :PersonName => shipper_contact[:name],
@@ -353,7 +402,6 @@ module Fedex #:nodoc:
               :Residential => residential
             }
           },
-          :Origin => {},
           :ShippingChargesPayment => {
             :PaymentType => @payment_type,
             :Payor => {
@@ -367,114 +415,29 @@ module Fedex #:nodoc:
           },
           :RateRequestTypes => @rate_request_type,
           :PackageCount => count,
-          :RequestedPackages => [ {:SequenceNumber=>1, :Weight => {:Units => @units, :Value => weight} } ]
+          :ShipTimestamp => time,
+          :DropoffType => @dropoff_type,
+          :ServiceType => service_type,
+          :PackagingType => @packaging_type,
+          :PackageDetail => RequestedPackageDetailTypes::INDIVIDUAL_PACKAGES,
+          :PackageDetailSpecified => true,
+          :TotalWeight => { :Units => @units, :Value => weight },
+          :PreferredCurrency => @currency,
+          :RequestedPackageLineItems => package_line_items(options)
         }
-      ))
-      
-      successful = successful?(result)
-      
-      msg = error_msg(result, false)
-      if successful && msg !~ /There are no valid services available/
-        pre = result.completedShipmentDetail.shipmentRating.shipmentRateDetails
-        charge = ((pre.class == Array ? pre[0].totalNetCharge.amount.to_f : pre.totalNetCharge.amount.to_f) * 100).to_i
-        label = Base64.decode64(result.completedShipmentDetail.completedPackageDetails.label.parts.image)
-        tracking_number = result.completedShipmentDetail.completedPackageDetails.trackingId.trackingNumber
-        [charge, label, tracking_number]
-      else
-        raise FedexError.new("Unable to get label from Fedex: #{msg}")
-      end
+      )
     end
-    
-    # Cancel a shipment
-    #
-    #  fedex = Fedex::Base.new(options)
-    #  result = fedex.cancel(options)
-    #
-    # Returns a boolean indicating whether or not the operation was successful
-    #
-    # === Required options for cancel
-    #   :tracking_number - The Fedex-provided tracking number you wish to cancel
-    def cancel(options = {})
-      check_required_options(:ship_cancel, options)
-      
-      tracking_number = options[:tracking_number]
-      
-      driver = create_driver(:ship)
-      
-      result = driver.deleteShipment(common_options.merge(
-        :TrackingNumber => tracking_number
-      ))
 
-      return successful?(result)
-    end
-    
-  private
-    # Options that go along with each request
-    def common_options
-      {
-        :WebAuthenticationDetail => { :UserCredential => { :Key => @auth_key, :Password => @security_code } },
-        :ClientDetail => { :AccountNumber => @account_number, :MeterNumber => @meter_number },
-        :Version => WS_VERSION
+    def package_line_items(options)
+      line_items = {
+        :SequenceNumber => 1,
+        :Weight => {
+          :Units => @units,
+          :Value => options[:weight]
+        }
       }
+      [line_items]
     end
-  
-    # Checks the supplied options for a given method or field and throws an exception if anything is missing
-    def check_required_options(option_set_name, options = {})
-      required_options = REQUIRED_OPTIONS[option_set_name]
-      missing = []
-      required_options.each{|option| missing << option if options[option].nil?}
-      
-      unless missing.empty?
-        raise MissingInformationError.new("Missing #{missing.collect{|m| ":#{m}"}.join(', ')}")
-      end
-    end
-    
-    # Creates and returns a driver for the requested action
-    def create_driver(name)
-      path = File.expand_path(DIR + '/' + WSDL_PATHS[name])
-      wsdl = SOAP::WSDLDriverFactory.new(path)
-      driver = wsdl.create_rpc_driver
-      # /s+(1000|0|9c9|fcc)\s+/ => ""
-      driver.wiredump_dev = STDOUT if @debug
-      
-      driver
-    end
-    
-    # Resolves the ground+residential discrepancy.  If a package is shipped via Fedex Ground to an address marked as residential the service type
-    # must be set to ServiceTypes::GROUND_HOME_DELIVERY and not ServiceTypes::FEDEX_GROUND.
-    def resolve_service_type(service_type, residential)
-      if residential && (service_type == ServiceTypes::FEDEX_GROUND)
-        ServiceTypes::GROUND_HOME_DELIVERY
-      else
-        service_type
-      end
-    end
-    
-    # Returns a boolean determining whether a request was successful.
-    def successful?(result)
-      if defined?(result.cancelPackageReply)
-        SUCCESSFUL_RESPONSES.any? {|r| r == result.cancelPackageReply.highestSeverity }
-      else
-        SUCCESSFUL_RESPONSES.any? {|r| r == result.highestSeverity }
-      end
-    end
-    
-    # Returns the error message contained in the SOAP response, if one exists.
-    def error_msg(result, return_nothing_if_successful=true)
-      return "" if successful?(result) && return_nothing_if_successful
-      notes = result.notifications
-      notes.respond_to?(:message) ? notes.message : notes.first.message
-    end
-    
-    # Attempts to determine the carrier code for a tracking number based upon its length.  Currently supports Fedex Ground and Fedex Express
-    def carrier_code_for_tracking_number(tracking_number)
-      case tracking_number.length
-      when 12
-        'FDXE'
-      when 15
-        'FDXG'
-      end
-    end
+
   end
-  
 end
