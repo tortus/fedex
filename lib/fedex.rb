@@ -166,7 +166,7 @@ module Fedex #:nodoc:
 
       # Process the rate request 
       driver = create_driver(:rate)
-      result = driver.getRates()
+      result = driver.getRates(options)
 
       extract_price = proc do |reply_detail|
         shipment_details = reply_detail.ratedShipmentDetails
