@@ -58,7 +58,8 @@ module Fedex #:nodoc:
                   :units,
                   :packaging_type,
                   :sender,
-                  :debug
+                  :debug,
+                  :environment
     
     # Initializes the Fedex::Base class, setting defaults where necessary.
     # 
@@ -88,6 +89,7 @@ module Fedex #:nodoc:
     #   :units              - One of Fedex::WeightUnits.  Defaults to WeightUnits::LB
     #   :currency           - One of Fedex::CurrencyTypes.  Defaults to CurrencyTypes::USD
     #   :debug              - Enable or disable debug (wiredump) output.  Defaults to false.
+    #   :environment        - Connect to production or development FedEx servers. Defaults to production if RAILS_ENV == production, else development
     def initialize(options = {})
       check_required_options(:base, options)
       
@@ -105,6 +107,8 @@ module Fedex #:nodoc:
       @units              = options[:units]             || WeightUnits::LB
       @currency           = options[:currency]          || CurrencyTypes::USD
       @debug              = options[:debug]             || false
+      @environment        = options[:environment]       || ('production' == RAILS_ENV ? 'production' : 'development')
+      @environment        = @environment.to_sym
     end
     
     # Gets a rate quote from Fedex.
