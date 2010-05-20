@@ -163,10 +163,12 @@ module Fedex #:nodoc:
       # Check Address Options
       check_required_options(:contact, options[:shipper][:contact])
       check_required_options(:address, options[:shipper][:address])
+      check_two_letter_country_code(:shipper, options)
 
       # Check Contact Options
       check_required_options(:contact, options[:recipient][:contact])
       check_required_options(:address, options[:recipient][:address])
+      check_two_letter_country_code(:recipient, options)
 
       # Build shipment options
       options = build_shipment_options(:crs, options) 
@@ -235,10 +237,12 @@ module Fedex #:nodoc:
       # Check Address Options
       check_required_options(:contact, options[:shipper][:contact])
       check_required_options(:address, options[:shipper][:address])
+      check_two_letter_country_code(:shipper, options)
 
       # Check Contact Options
       check_required_options(:contact, options[:recipient][:contact])
       check_required_options(:address, options[:recipient][:address])
+      check_two_letter_country_code(:recipient, options)
 
       # Build shipment options
       options = build_shipment_options(:ship, options)
@@ -294,6 +298,14 @@ module Fedex #:nodoc:
         :ClientDetail => { :AccountNumber => @account_number, :MeterNumber => @meter_number },
         :Version => WS_VERSION.merge({:ServiceId => service.to_s})
       }
+    end
+
+    # Checks the supplied address to ensure the country is a two-letter code
+    def check_two_letter_country_code(type, options)
+      return true if 2 == options[type][:address][:country].length
+      
+      err_msg = "Country '#{options[type][:address][:country]}' must be provided as a two-letter ISO country code"
+      raise MissingInformationError.new("Error in #{type.to_s.humanize} Address: #{err_msg}")
     end
 
     # Checks the supplied options for a given method or field and throws an exception if anything is missing
