@@ -1,4 +1,8 @@
-= fedex
+= FedEx
+
+  NOTE: This version only supports the v7 API
+  
+Our FedEx contact said v8 is quite similar and may work with no changes.  Nonetheless, this is a fair warning that due to our business requirements it's only been tested against v7.
 
 == Description
 

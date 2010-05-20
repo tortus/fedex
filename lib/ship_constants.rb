@@ -674,5 +674,10 @@ module Fedex
     LB = "LB"
   end
   
+  module QuantityUnits
+    EA = 'EA'
+    DZ = 'DZ'
+  end
+  
   
 end

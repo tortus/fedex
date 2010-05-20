@@ -33,7 +33,8 @@ module Fedex #:nodoc:
       :label       => [ :shipper, :recipient, :weight, :service_type ],
       :contact     => [ :name, :phone_number ],
       :address     => [ :country, :street, :city, :state, :zip ],
-      :ship_cancel => [ :tracking_number ]
+      :ship_cancel => [ :tracking_number ],
+      :intl        => [ :customs_value, :packages ]
     }
     
     # Defines the relative path to the WSDL files.  Defaults assume lib/wsdl under plugin directory.
@@ -112,6 +113,8 @@ module Fedex #:nodoc:
       @debug              = options[:debug]             || false
       @environment        = options[:environment]       || ('production' == RAILS_ENV ? 'production' : 'development')
       @environment        = @environment.to_sym
+      
+      set_international_option_defaults(options)  if international_shipment?(options)
     end
     
     # Gets a rate quote from Fedex.
@@ -450,9 +453,64 @@ module Fedex #:nodoc:
           :PreferredCurrency => @currency,
           :RequestedPackageLineItems => package_line_items(options)
         }
+      ).merge(
+        international_shipment?(options) ? international_shipping_options(options) : {}
       )
     end
+    
+    def international_shipment?(options)
+      shipper_country_is_usa     = options[:shipper][:address][:country][/us/i]
+      recipient_country_is_usa   = options[:recipient][:address][:country][/us/i]
+      
+      !shipper_country_is_usa || !recipient_country_is_usa
+    end
+    
+    # Return the options required for shipping internationally
+    def international_shipping_options(options)
+      {
+        :InternationalDocumentContentType => @intl[:content_type],
+        :AdmissibilityPackageType => @intl[:admissibility_package_type],
+        :RequestedShipment => {
+          :ShipTimeStamp => Time.now.utc.strftime("%Y-%m-%dT%H:%M:%S-00:00"),
+          :Date => Date.today,
+        },
+        :TermsOfSale => @intl[:terms_of_sale],
+        :FreightCharge => @intl[:freight_charge],
+        :InsuranceCharge => @intl[:insurance_charge],
+        :RegulatoryControlType => @intl[:regulator_control_type],
+        :CustomsValue => @intl[:customs_value],
+        :Purpose => @intl[:purpose],
+        :Commodity => {
+          :NumberOfPieces => 1,
+          :Description => options[:commodity][:description],
+          :CountryOfManufacture => options[:commodity][:country_of_manufacture],
+          :Quantity => options[:commodity][:quantity],
+          :Units => options[:commodity][:units],
+          :Weight => options[:weight],
+          :UnitPrice => options[:unit_price],
+          :Amount => options[:unit_price] * options[:units],
+        }
+      }
+    end
+    
 
+    # Date.today format
+    ### allow passing in multiple items (commodities?) and doing MPS stuff (since each commod needs own data anyway)
+    ### raise missing info errors if needed not passed for itnernational    
+    def set_international_option_defaults(options)
+      check_required_options(:intl, options)
+
+      @intl = {}
+      @intl[:content_type]                = options[:international_document_content_type]   ||  InternationalDocumentContentTypes::NON_DOCUMENTS
+      @intl[:admissibility_package_type]  = options[:admissibility_package_type]            ||  AdmissibilityPackageTypes::BOX # "Other packaging"
+      @intl[:terms_of_sale]	              = options[:terms_of_sale]                         ||  TermsOfSaleTypes::FOB_OR_FCA # default, shipper pays
+      @intl[:freight_charge]	            = options[:freight_charge]                        ||  0
+      @intl[:insurance_charge]	          = options[:insurance_charge]                      ||  0
+      @intl[:regulatory_control_type]	    = options[:regulatory_control_type]               ||  nil
+      @intl[:purpose]	                    = options[:purpose]                               ||  PurposeOfShipmentTypes::SOLD
+      @intl[:customs_value]	              = options[:customs_value]
+    end
+    
     def package_line_items(options)
       line_items = {
         :SequenceNumber => 1,
