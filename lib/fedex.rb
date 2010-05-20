@@ -322,6 +322,9 @@ module Fedex #:nodoc:
     # Creates and returns a driver for the requested action
     def create_driver(name)
       path = File.expand_path(DIR + '/' + WSDL_PATHS[name])
+      
+      raise MissingInformationError.new("Missing WSDL file at #{path}") unless File.exists?(path)
+            
       wsdl = SOAP::WSDLDriverFactory.new(path)
       driver = wsdl.create_rpc_driver
       driver.proxy.endpoint_url = :production == @environment ? "https://gateway.fedex.com:443/web-services" : "https://gatewaybeta.fedex.com:443/web-services"
