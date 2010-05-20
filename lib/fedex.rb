@@ -84,12 +84,14 @@ module Fedex #:nodoc:
     #                         if you're generating completely custom labels with a format of your own design.  If printing to Fedex stock
     #                         leave this alone.
     #   :label_image_type   - One of Fedex::LabelSpecificationImageTypes.  Defaults to LabelSpecificationImageTypes::PDF.
+    #   :label_stock_type   - One of Fedex::LabelStockTypes.  Defaults to LabelStockTypes::PAPER_85X11_TOP_HALF_LABEL.
     #   :rate_request_type  - One of Fedex::RateRequestTypes.  Defaults to RateRequestTypes::ACCOUNT
     #   :payment            - One of Fedex::PaymentTypes.  Defaults to PaymentTypes::SENDER
     #   :units              - One of Fedex::WeightUnits.  Defaults to WeightUnits::LB
     #   :currency           - One of Fedex::CurrencyTypes.  Defaults to CurrencyTypes::USD
     #   :debug              - Enable or disable debug (wiredump) output.  Defaults to false.
-    #   :environment        - Connect to production or development FedEx servers. Defaults to production if RAILS_ENV == production, else development
+    #   :environment        - Connect to production or development FedEx servers. Defaults to production if RAILS_ENV == production, 
+    #                         else development
     def initialize(options = {})
       check_required_options(:base, options)
       
@@ -102,6 +104,7 @@ module Fedex #:nodoc:
       @packaging_type     = options[:packaging_type]    || PackagingTypes::YOUR_PACKAGING
       @label_type         = options[:label_type]        || LabelFormatTypes::COMMON2D
       @label_image_type   = options[:label_image_type]  || LabelSpecificationImageTypes::PDF
+      @label_stock_type   = options[:label_stock_type]  || LabelStockTypes::PAPER_85X11_TOP_HALF_LABEL
       @rate_request_type  = options[:rate_request_type] || RateRequestTypes::LIST
       @payment_type       = options[:payment]           || PaymentTypes::SENDER
       @units              = options[:units]             || WeightUnits::LB
@@ -309,6 +312,8 @@ module Fedex #:nodoc:
       path = File.expand_path(DIR + '/' + WSDL_PATHS[name])
       wsdl = SOAP::WSDLDriverFactory.new(path)
       driver = wsdl.create_rpc_driver
+      driver.proxy.endpoint_url = :production == @environment ? "https://gateway.fedex.com:443/web-services" : "https://gatewaybeta.fedex.com:443/web-services"
+      
       # /s+(1000|0|9c9|fcc)\s+/ => ""
       driver.wiredump_dev = STDOUT if @debug
 
@@ -415,7 +420,8 @@ module Fedex #:nodoc:
           },
           :LabelSpecification => {
             :LabelFormatType => @label_type,
-            :ImageType => @label_image_type
+            :ImageType => @label_image_type,
+            :LabelStockType => @label_stock_type
           },
           :RateRequestTypes => @rate_request_type,
           :PackageCount => count,
