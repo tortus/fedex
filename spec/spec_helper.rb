@@ -26,9 +26,13 @@ def strip_timestamps(string)
   string.gsub(/Timestamp>.*?<\//, 'Timestamp></')
 end
 
+def strip_auth(string)
+  string.gsub(/Key>.*?<\//, 'Key></').gsub(/Password>.*?<\//, 'Password></').gsub(/AccountNumber>.*?<\//, 'AccountNumber></').gsub(/MeterNumber>.*?<\//, 'MeterNumber></')
+end
+
 def xml_same?(str_a, str_b)
-  sta = strip_timestamps(str_a)
-  stb = strip_timestamps(str_b)
+  sta = strip_auth strip_timestamps(str_a)
+  stb = strip_auth strip_timestamps(str_b)
 
   # # Used to help debug problems
   # aa = sta.split(/\n/)
@@ -36,7 +40,12 @@ def xml_same?(str_a, str_b)
   # df1 = aa.select{|l| bb[aa.index(l)] != l}
   # df2 = bb.select{|l| aa[bb.index(l)] != l}
   # aa.length.times do |i|
-  #   puts "#{i}: #{aa[i] == bb[i] ? 'same' : 'UNMATCHED' }"
+  #   if aa[i] == bb[i]
+  #     puts "#{i}: same"
+  #   else
+  #     puts "---\nEXPECTED: #{bb[i]}\nGOT: #{aa[i]}\n---"
+  #   end
+  #   # puts "#{i}: #{aa[i] == bb[i] ? 'same' : 'UNMATCHED' }"
   # end
   # debugger
   

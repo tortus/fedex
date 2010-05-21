@@ -40,12 +40,12 @@ module Fedex #:nodoc:
     
     # Defines the relative path to the WSDL files.  Defaults assume lib/wsdl under plugin directory.
     WSDL_PATHS = {
-      :rate => 'wsdl/RateService_v7.wsdl',
-      :ship => 'wsdl/ShipService_v7.wsdl',
+      :rate => 'wsdl/RateService_v8.wsdl',
+      :ship => 'wsdl/ShipService_v8.wsdl',
     }
     
     # Defines the Web Services version implemented.
-    WS_VERSION = { :Major => 7, :Intermediate => 0, :Minor => 0 }
+    WS_VERSION = { :Major => 8, :Intermediate => 0, :Minor => 0 }
     
     SUCCESSFUL_RESPONSES = ['SUCCESS', 'WARNING', 'NOTE'] #:nodoc:
     
@@ -289,7 +289,7 @@ module Fedex #:nodoc:
         charge = ((pre.class == Array ? pre[0].totalNetCharge.amount.to_f : pre.totalNetCharge.amount.to_f) * 100).to_i
         tracking_number = result.completedShipmentDetail.completedPackageDetails.trackingIds.trackingNumber
         label = Base64.decode64(result.completedShipmentDetail.completedPackageDetails.label.parts.image)        
-        [charge, labels, tracking_number]
+        [charge, label, tracking_number]
       else
         raise FedexError.new("Unable to get label from Fedex: #{msg}")
       end

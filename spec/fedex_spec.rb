@@ -7,8 +7,6 @@ def auth
     :account_number => 'ACCOUNT',
     :meter_number   => 'METER'
   }
-  
-  
 end
 
 
@@ -64,7 +62,7 @@ describe Fedex do
   #       :weight => 4.3125,
   #       :service_type => 'FEDEX_GROUND'
   #     })
-  #   rescue Fedex::FedexError
+  #   rescue Fedex::FedexError => e
   #   end
   # 
   #   get_request
@@ -103,7 +101,7 @@ describe Fedex do
       debugger
       a=1
     end
-
+  
     get_request
     xml_same?(@request, fixture_file(:requests, 'domestic_one_package.xml')).should be_true
   end

@@ -1,9 +1,7 @@
 = FedEx
 
-  NOTE: This version only supports the v7 API
+  NOTE: This version should support v8 of the FedEx API, although it has not been exhaustively tested.
   
-Our FedEx contact said v8 is quite similar and may work with no changes.  Nonetheless, this is a fair warning that due to our business requirements it's only been tested against v7.
-
   WARNING: Plugin isn't yet stable!! I'm in the process of supporting multiple packages and 
   international shipping, but until that's completed this branch is quite likely to be broken.
 
