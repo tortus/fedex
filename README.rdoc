@@ -1,15 +1,52 @@
 = FedEx
 
-  NOTE: This version should support v8 of the FedEx API, although it has not been exhaustively tested.
+  NOTE: This version should support v8 of the FedEx API, although it has not been exhaustively tested (shipping yes, rate requests no).
   
   WARNING: Plugin isn't yet stable!! I'm in the process of supporting multiple packages and 
   international shipping, but until that's completed this branch is quite likely to be broken.
 
-== Description
+== Updates over other repos
 
-This Rails[http://www.rubyonrails.org] plugin will enable you to integrate with Fedex's Web Services platform for the purpose of obtaining shipping rate quotes, generating shipping labels, and cancelling shipments.  Web Services is Fedex's new web service platform that replaces Web Integration. It is quite robust. The plugin we're providing here attempts to make using this new system as simple as you've come to expect from Rails itself.  It does not implement Web Services in its entirety, but it provides the two core services (Rate and Ship) most applicable to e-commerce.
+  * Upgraded to v8, the latest version of the FedEx API as of May 2010
+  * Extended to allow grouping multiple packages under a single master tracking number
+  * WIP - extended to allow international shipping
+  * A number of smaller changes, see git commits for details
 
-This is a fork of {Mighty Interactive's Fedex plugin}[http://mightyinteractive.com/ruby-on-rails/fedex/] that has been updated to be compatible with the latest version (v7 as of 10/22/2009) of the Fedex API.
+== API Changes
+
+This update is backwards-compatible with older versions; if you're only sending one item, you can still use the old-style inline API for package information:
+
+  price, label, tracking_number = @fedex.label({
+    :shipper => shipper_address,
+    :recipient => recipient_address,
+    :weight => 4.3125,
+    :service_type => 'FEDEX_GROUND'
+  })
+
+If you want to ship one or more packages in a group, however, you can also use the :packages option:
+
+  price, labels, tracking_number = @fedex.label({
+    :shipper => shipper_address,
+    :recipient => recipient_address,
+    :service_type => 'FEDEX_GROUND',
+    :packages => [
+      {:weight => 4.3125},
+      {:weight => 1.23, :dry_ice => true, :dry_ice_weight => 0.5}
+    ],
+  })
+
+=== Return values
+
+The price returned is the sum of the prices of each package shipped.
+
+The second return value will be the label, if only one package is shipped, or an array of labels, if multiple are sent together.
+
+The tracking number returned when shipping a group of packages is the master tracking number, which you can use to track all grouped items.
+
+
+
+
+
 
 === Installation
 
@@ -27,9 +64,11 @@ and then if you want to:
 
 To install the plugin itself, simply navigate to your project directory and run:
 
-  script/plugin install git://github.com/mcmire/fedex.git
+  script/plugin install git://github.com/kdonovan/fedex.git
 
-Due to copyright reasons we cannot distribute the associated WSDL files; you will need to apply for a {developer account}[http://www.fedex.com/developer] with Fedex to begin working on your integration.  Once you've created your account, head to the "Get Started" section, where you can find documentation and the individual WSDLs for all of the available services.  For our purposes you need only two: Rate (<tt>RateService_v7.wsdl</tt> as of 10/22/2009) and Ship (<tt>ShipService_v7.wsdl</tt> as of 10/22/2009). Download these WSDLs and put them in the <tt>vendor/plugins/fedex/lib/wsdl/</tt> directory.
+==== IMPORTANT: Obtaining WSDLs
+
+Due to copyright reasons we cannot distribute the associated WSDL files; you will need to apply for a {developer account}[http://www.fedex.com/developer] with Fedex to begin working on your integration.  Once you've created your account, head to the "Get Started" section, where you can find documentation and the individual WSDLs for all of the available services.  For our purposes you need only two: Rate (<tt>RateService_v8.wsdl</tt> as of May 2010) and Ship (<tt>ShipService_v8.wsdl</tt> as of May 2010). Download these WSDLs and put them in the <tt>vendor/plugins/fedex/lib/wsdl/</tt> directory.
 
 == Usage
 
@@ -129,9 +168,10 @@ I (Elliot) use this plugin at work and right now we are only using the 'price' f
 * Joseph Jamarillo, josephj [at] offmadisonave [dot] com (original author)
 * Elliot Winkler, elliot.winkler [at] gmail [dot] com (fork for v5 compatibility)
 * Laurence A. Lee, lalee [at] pobox [dot] com (additional fixes for v5 compatibility)
+* Kali Donovan (v8 compatibility, multiple package support, international shipping)
 
 == Copyright/License
 
-Copyright (c) 2007 Joseph Jaramillo
+Copyright (c) 2010 Kali Donovan
 
 This plugin is made available under the MIT license.

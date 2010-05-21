@@ -30,8 +30,8 @@ module Fedex #:nodoc:
     REQUIRED_OPTIONS = {
       :base        => [ :auth_key, :security_code, :account_number, :meter_number ],
       :price       => [ :shipper, :recipient, :weight ],
-      :label       => [ :shipper, :recipient, :weight, :service_type ],
-      :labels      => [ :shipper, :recipient, :service_type ],
+      :label       => [ :shipper, :recipient, :service_type ],
+      :package     => [ :weight ],
       :contact     => [ :name, :phone_number ],
       :address     => [ :country, :street, :city, :state, :zip ],
       :ship_cancel => [ :tracking_number ],
@@ -234,38 +234,46 @@ module Fedex #:nodoc:
     #                          :phone_number => '4805551212'},
     #             :address => address} # See "Address" for under price.
     def label(options = {})
-      multiple = options[:packages] && options[:packages].length > 1      
-      options[:weight] ||= options[:packages].first[:weight] if options[:packages] && options[:packages].length == 1
-
-      check_shipping_options(options, multiple ? :labels : :label)
+      single_package = options[:packages].nil? || options[:packages].length == 1
+      
+      check_shipping_options(options)
       
       # Build shipment options
-      options = build_shipment_options(:ship, options, :master => multiple)
+      first_package = if options[:packages]
+        options[:packages].each{|p| check_required_options(:package, p) }
+        options[:packages].first
+      else # Check old-style inline API
+        check_required_options(:package, options)
+        options
+      end
+      shipment_details = build_shipment_options(:ship, options, first_package, :master => !single_package)
 
-      unless multiple
+      if single_package
         # Process the shipment request
-        process_shipment(options)  
+        process_shipment( shipment_details )
       else
         # Process multiple shipments
-        charge, label, master_tracking_number = process_shipment(options)
+        summed_charges, label, master_tracking_number = process_shipment( shipment_details )
         labels = [label]
 
         options[:packages].each_with_index do |package, idx|
-          options = build_shipment_options(:ship, options, :package => package, :sequence => idx + 1)
-          charge, label, tracking_number = process_shipment(options)
+          next if idx == 0 # Already processed first package
+          shipment_details = build_shipment_options(:ship, options, package, :sequence => idx + 1, :master_tracking_number => master_tracking_number)
+          charge, label, tracking_number = process_shipment( shipment_details )
+          summed_charges += charge
           labels << label
         end
 
-        [charge, labels, master_tracking_number]
+        [summed_charges, labels, master_tracking_number]
       end
     end
 
 
-    def check_shipping_options(options, label_or_labels)
+    def check_shipping_options(options)
       puts options.inspect if $DEBUG
 
       # Check overall options
-      check_required_options(label_or_labels, options)
+      check_required_options(:label, options)
 
       # Check Address Options
       check_required_options(:contact, options[:shipper][:contact])
@@ -285,11 +293,14 @@ module Fedex #:nodoc:
 
       msg = error_msg(result, false)
       if successful && msg !~ /There are no valid services available/
-        pre = result.completedShipmentDetail.shipmentRating.shipmentRateDetails
-        charge = ((pre.class == Array ? pre[0].totalNetCharge.amount.to_f : pre.totalNetCharge.amount.to_f) * 100).to_i
-        tracking_number = result.completedShipmentDetail.completedPackageDetails.trackingIds.trackingNumber
-        label = Base64.decode64(result.completedShipmentDetail.completedPackageDetails.label.parts.image)        
-        [charge, label, tracking_number]
+        xml = result.completedShipmentDetail
+        pre = xml.completedPackageDetails.packageRating.packageRateDetails  # shipmentRating.shipmentRateDetails
+        charge = ((pre.class == Array ? pre[0].netCharge.amount.to_f : pre.netCharge.amount.to_f) * 100).to_i
+        tracking_number = xml.completedPackageDetails.trackingIds.trackingNumber        
+        master_tracking_number = xml.respond_to?(:masterTrackingId) ? xml.masterTrackingId.trackingNumber : nil
+        
+        label = Base64.decode64(xml.completedPackageDetails.label.parts.image)        
+        [charge, label, tracking_number, master_tracking_number]
       else
         raise FedexError.new("Unable to get label from Fedex: #{msg}")
       end
@@ -407,7 +418,7 @@ module Fedex #:nodoc:
       end
     end
 
-    def build_shipment_options(service, options, toggles)
+    def build_shipment_options(service, options, package, multi_options)
       # Prepare variables
       order_number        = options[:order_number] || ''
 
@@ -420,7 +431,7 @@ module Fedex #:nodoc:
       recipient_contact   = recipient[:contact]
       recipient_address   = recipient[:address]
 
-      count               = options[:count] || (options[:packages] ? options[:packages].length : 1)
+      count               = options[:packages] ? options[:packages].length : 1
       weight              = options[:packages] ? options[:packages].sum{|p| p[:weight]} : options[:weight]
 
       time                = options[:time] || Time.now
@@ -474,6 +485,7 @@ module Fedex #:nodoc:
           },
           :RateRequestTypes => @rate_request_type,
           :PackageCount => count,
+          :MasterTrackingId => multi_options[:master_tracking_number] ? {:TrackingNumber => multi_options[:master_tracking_number]} : nil,
           :ShipTimestamp => time,
           :DropoffType => @dropoff_type,
           :ServiceType => service_type,
@@ -482,13 +494,51 @@ module Fedex #:nodoc:
           :PackageDetailSpecified => true,
           :TotalWeight => { :Units => @units, :Value => weight },
           :PreferredCurrency => @currency,
-          :RequestedPackageLineItems => package_line_items(options[:packages] ? options[:packages] : options)
+          :RequestedPackageLineItems => package_line_items(package, multi_options)
         }
       ).merge(
         international_shipment?(options) ? international_shipping_options(options) : {}
       )
     end
-    
+        
+    def package_line_items(package, more = {})
+      line_item = {
+        :SequenceNumber => more[:sequence] || 1,
+        :Weight => {
+          :Units => @units,
+          :Value => package[:weight]
+        },
+        :SpecialServicesRequested => {
+          :SpecialServiceTypes => []
+        }
+      }
+
+      if package[:dry_ice]
+        dry_ice_type = package[:dry_ice_type] || PackageSpecialServiceTypes::DRY_ICE
+        line_item[:SpecialServicesRequested][:SpecialServiceTypes] << dry_ice_type
+
+        line_item[:SpecialServicesRequested].merge!(
+          :DryIceWeight => {
+            :Units => package[:dry_ice_weight_units] || WeightUnits::KG,
+            :Value => package[:dry_ice_weight]
+          }
+        )
+      end
+      
+      if package[:dangerous_goods]
+        dangerous_goods_type = package[:dangerous_goods_type] || PackageSpecialServiceTypes::DANGEROUS_GOODS
+        line_item[:SpecialServicesRequested][:SpecialServiceTypes] << dangerous_goods_type
+
+        line_item[:SpecialServicesRequested].merge!(
+          :DangerousGoodsDetail => {
+            :Accessibility => package[:dangerous_goods_accessibility] || DangerousGoodsAccessibilityTypes::INACCESSIBLE
+          }
+        )
+      end
+      
+      [line_item]
+    end
+
     def international_shipment?(options)
       return nil unless options[:shipper] && options[:shipper][:address]
       return nil unless options[:recipient] && options[:recipient][:address]
@@ -544,49 +594,8 @@ module Fedex #:nodoc:
       @intl[:purpose]	                    = options[:purpose]                               ||  PurposeOfShipmentTypes::SOLD
       @intl[:customs_value]	              = options[:customs_value]
     end
-    
-    def package_line_items(packages)
-      line_items = []
-      (packages.is_a?(Array) ? packages : [packages]).each_with_index do |package, idx|
-        line_item = {
-          :SequenceNumber => idx + 1,
-          :Weight => {
-            :Units => @units,
-            :Value => package[:weight]
-          },
-          :SpecialServicesRequested => {
-            :SpecialServiceTypes => []
-          }
-        }
-      
-        if package[:dry_ice]
-          dry_ice_type = package[:dry_ice_type] || PackageSpecialServiceTypes::DRY_ICE
-          line_item[:SpecialServicesRequested][:SpecialServiceTypes] << dry_ice_type
 
-          line_item[:SpecialServicesRequested].merge!(
-            :DryIceWeight => {
-              :Units => package[:dry_ice_weight_units] || WeightUnits::KG,
-              :Value => package[:dry_ice_weight]
-            }
-          )
-        end
-        
-        if package[:dangerous_goods]
-          dangerous_goods_type = package[:dangerous_goods_type] || PackageSpecialServiceTypes::DANGEROUS_GOODS
-          line_item[:SpecialServicesRequested][:SpecialServiceTypes] << dangerous_goods_type
 
-          line_item[:SpecialServicesRequested].merge!(
-            :DangerousGoodsDetail => {
-              :Accessibility => package[:dangerous_goods_accessibility] || DangerousGoodsAccessibilityTypes::INACCESSIBLE
-            }
-          )
-        end
-        
-        line_items << line_item
-      end
-      
-      line_items
-    end
 
   end
 end

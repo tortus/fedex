@@ -22,32 +22,37 @@ def fixture_file(dirname, filename)
   File.read(File.dirname(__FILE__) + "/fixtures/#{dirname}/#{filename}")
 end
 
-def strip_timestamps(string)
-  string.gsub(/Timestamp>.*?<\//, 'Timestamp></')
+def strip_tag_contents(str, *tags)
+  tags.each do |tag|
+    str.gsub!(/#{tag}>.*?<\//, "#{tag}></")
+  end
+  return str
 end
 
-def strip_auth(string)
-  string.gsub(/Key>.*?<\//, 'Key></').gsub(/Password>.*?<\//, 'Password></').gsub(/AccountNumber>.*?<\//, 'AccountNumber></').gsub(/MeterNumber>.*?<\//, 'MeterNumber></')
+def clean_xml(str)
+  strip_tag_contents(str, 'Key', 'Password', 'AccountNumber', 'MeterNumber')
+  strip_tag_contents(str, 'Timestamp', 'TrackingNumber', 'Image')
 end
 
 def xml_same?(str_a, str_b)
-  sta = strip_auth strip_timestamps(str_a)
-  stb = strip_auth strip_timestamps(str_b)
+  sta = clean_xml(str_a.to_s)
+  stb = clean_xml(str_b.to_s)
 
   # # Used to help debug problems
   # aa = sta.split(/\n/)
   # bb = stb.split(/\n/)
   # df1 = aa.select{|l| bb[aa.index(l)] != l}
   # df2 = bb.select{|l| aa[bb.index(l)] != l}
-  # aa.length.times do |i|
-  #   if aa[i] == bb[i]
-  #     puts "#{i}: same"
-  #   else
-  #     puts "---\nEXPECTED: #{bb[i]}\nGOT: #{aa[i]}\n---"
+  # unless df1.empty? && df2.empty?
+  #   aa.length.times do |i|
+  #     if aa[i] == bb[i]
+  #       puts "#{i}: same"
+  #     else
+  #       puts "---\nEXPECTED: #{bb[i]}\nGOT: #{aa[i]}\n---"
+  #     end
   #   end
-  #   # puts "#{i}: #{aa[i] == bb[i] ? 'same' : 'UNMATCHED' }"
+  #   debugger 
   # end
-  # debugger
   
 
   sta == stb
