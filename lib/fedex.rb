@@ -31,6 +31,7 @@ module Fedex #:nodoc:
       :base        => [ :auth_key, :security_code, :account_number, :meter_number ],
       :price       => [ :shipper, :recipient, :weight ],
       :label       => [ :shipper, :recipient, :weight, :service_type ],
+      :labels      => [ :shipper, :recipient, :service_type ],
       :contact     => [ :name, :phone_number ],
       :address     => [ :country, :street, :city, :state, :zip ],
       :ship_cancel => [ :tracking_number ],
@@ -111,7 +112,8 @@ module Fedex #:nodoc:
       @units              = options[:units]             || WeightUnits::LB
       @currency           = options[:currency]          || CurrencyTypes::USD
       @debug              = options[:debug]             || false
-      @environment        = options[:environment]       || ('production' == RAILS_ENV ? 'production' : 'development')
+      @wiredump           = options[:wiredump]          || STDOUT
+      @environment        = options[:environment]       || (defined?(RAILS_ENV) && 'production' == RAILS_ENV ? 'production' : 'development')
       @environment        = @environment.to_sym
       
       set_international_option_defaults(options)  if international_shipment?(options)
@@ -232,10 +234,38 @@ module Fedex #:nodoc:
     #                          :phone_number => '4805551212'},
     #             :address => address} # See "Address" for under price.
     def label(options = {})
+      multiple = options[:packages] && options[:packages].length > 1      
+      options[:weight] ||= options[:packages].first[:weight] if options[:packages] && options[:packages].length == 1
+
+      check_shipping_options(options, multiple ? :labels : :label)
+      
+      # Build shipment options
+      options = build_shipment_options(:ship, options, :master => multiple)
+
+      unless multiple
+        # Process the shipment request
+        process_shipment(options)  
+      else
+        # Process multiple shipments
+        charge, label, master_tracking_number = process_shipment(options)
+        labels = [label]
+
+        options[:packages].each_with_index do |package, idx|
+          options = build_shipment_options(:ship, options, :package => package, :sequence => idx + 1)
+          charge, label, tracking_number = process_shipment(options)
+          labels << label
+        end
+
+        [charge, labels, master_tracking_number]
+      end
+    end
+
+
+    def check_shipping_options(options, label_or_labels)
       puts options.inspect if $DEBUG
 
       # Check overall options
-      check_required_options(:label, options)
+      check_required_options(label_or_labels, options)
 
       # Check Address Options
       check_required_options(:contact, options[:shipper][:contact])
@@ -246,11 +276,9 @@ module Fedex #:nodoc:
       check_required_options(:contact, options[:recipient][:contact])
       check_required_options(:address, options[:recipient][:address])
       check_two_letter_country_code(:recipient, options)
+    end
 
-      # Build shipment options
-      options = build_shipment_options(:ship, options)
-
-     # Process the shipment request
+    def process_shipment(options)
       driver = create_driver(:ship)
       result = driver.processShipment(options)
       successful = successful?(result)
@@ -259,13 +287,14 @@ module Fedex #:nodoc:
       if successful && msg !~ /There are no valid services available/
         pre = result.completedShipmentDetail.shipmentRating.shipmentRateDetails
         charge = ((pre.class == Array ? pre[0].totalNetCharge.amount.to_f : pre.totalNetCharge.amount.to_f) * 100).to_i
-        label = Base64.decode64(result.completedShipmentDetail.completedPackageDetails.label.parts.image)
         tracking_number = result.completedShipmentDetail.completedPackageDetails.trackingIds.trackingNumber
-        [charge, label, tracking_number]
+        label = Base64.decode64(result.completedShipmentDetail.completedPackageDetails.label.parts.image)        
+        [charge, labels, tracking_number]
       else
         raise FedexError.new("Unable to get label from Fedex: #{msg}")
       end
     end
+    
 
     # Cancel a shipment
     #
@@ -315,10 +344,10 @@ module Fedex #:nodoc:
     def check_required_options(option_set_name, options = {})
       required_options = REQUIRED_OPTIONS[option_set_name]
       missing = []
-      required_options.each{|option| missing << option if options[option].nil?}
+      required_options.each{|option| missing << option if options.nil? || options[option].nil?}
 
       unless missing.empty?
-        raise MissingInformationError.new("Missing #{missing.collect{|m| ":#{m}"}.join(', ')}")
+        raise MissingInformationError.new("Missing #{missing.collect{|m| ":#{m}"}.join(', ')} for #{option_set_name}")
       end
     end
 
@@ -330,10 +359,12 @@ module Fedex #:nodoc:
             
       wsdl = SOAP::WSDLDriverFactory.new(path)
       driver = wsdl.create_rpc_driver
-      driver.proxy.endpoint_url = :production == @environment ? "https://gateway.fedex.com:443/web-services" : "https://gatewaybeta.fedex.com:443/web-services"
+      driver.proxy.endpoint_url = if :production == @environment then "https://gateway.fedex.com:443/web-services"
+      else "https://gatewaybeta.fedex.com:443/web-services"
+      end
       
       # /s+(1000|0|9c9|fcc)\s+/ => ""
-      driver.wiredump_dev = STDOUT if @debug
+      driver.wiredump_dev = @wiredump if @debug
 
       driver
     end
@@ -376,7 +407,7 @@ module Fedex #:nodoc:
       end
     end
 
-    def build_shipment_options(service, options)
+    def build_shipment_options(service, options, toggles)
       # Prepare variables
       order_number        = options[:order_number] || ''
 
@@ -389,8 +420,8 @@ module Fedex #:nodoc:
       recipient_contact   = recipient[:contact]
       recipient_address   = recipient[:address]
 
-      count               = options[:count] || 1
-      weight              = options[:weight]
+      count               = options[:count] || (options[:packages] ? options[:packages].length : 1)
+      weight              = options[:packages] ? options[:packages].sum{|p| p[:weight]} : options[:weight]
 
       time                = options[:time] || Time.now
       time                = time.to_time.iso8601 if time.is_a?(Time)
@@ -451,7 +482,7 @@ module Fedex #:nodoc:
           :PackageDetailSpecified => true,
           :TotalWeight => { :Units => @units, :Value => weight },
           :PreferredCurrency => @currency,
-          :RequestedPackageLineItems => package_line_items(options)
+          :RequestedPackageLineItems => package_line_items(options[:packages] ? options[:packages] : options)
         }
       ).merge(
         international_shipment?(options) ? international_shipping_options(options) : {}
@@ -459,6 +490,9 @@ module Fedex #:nodoc:
     end
     
     def international_shipment?(options)
+      return nil unless options[:shipper] && options[:shipper][:address]
+      return nil unless options[:recipient] && options[:recipient][:address]
+      
       shipper_country_is_usa     = options[:shipper][:address][:country][/us/i]
       recipient_country_is_usa   = options[:recipient][:address][:country][/us/i]
       
@@ -471,7 +505,7 @@ module Fedex #:nodoc:
         :InternationalDocumentContentType => @intl[:content_type],
         :AdmissibilityPackageType => @intl[:admissibility_package_type],
         :RequestedShipment => {
-          :ShipTimeStamp => Time.now.utc.strftime("%Y-%m-%dT%H:%M:%S-00:00"),
+          :ShipTimeStamp => Time.now.iso8601,
           :Date => Date.today,
         },
         :TermsOfSale => @intl[:terms_of_sale],
@@ -511,41 +545,47 @@ module Fedex #:nodoc:
       @intl[:customs_value]	              = options[:customs_value]
     end
     
-    def package_line_items(options)
-      line_items = {
-        :SequenceNumber => 1,
-        :Weight => {
-          :Units => @units,
-          :Value => options[:weight]
-        },
-        :SpecialServicesRequested => {
-          :SpecialServiceTypes => []
+    def package_line_items(packages)
+      line_items = []
+      (packages.is_a?(Array) ? packages : [packages]).each_with_index do |package, idx|
+        line_item = {
+          :SequenceNumber => idx + 1,
+          :Weight => {
+            :Units => @units,
+            :Value => package[:weight]
+          },
+          :SpecialServicesRequested => {
+            :SpecialServiceTypes => []
+          }
         }
-      }
       
-      if options[:dry_ice]
-        dry_ice_type = options[:dry_ice_type] || PackageSpecialServiceTypes::DRY_ICE
-        line_items[:SpecialServicesRequested][:SpecialServiceTypes] << dry_ice_type
+        if package[:dry_ice]
+          dry_ice_type = package[:dry_ice_type] || PackageSpecialServiceTypes::DRY_ICE
+          line_item[:SpecialServicesRequested][:SpecialServiceTypes] << dry_ice_type
 
-        line_items[:SpecialServicesRequested].merge!(
-          :DryIceWeight => {
-            :Units => options[:dry_ice_weight_units] || WeightUnits::KG,
-            :Value => options[:dry_ice_weight]
-          }
-        )
+          line_item[:SpecialServicesRequested].merge!(
+            :DryIceWeight => {
+              :Units => package[:dry_ice_weight_units] || WeightUnits::KG,
+              :Value => package[:dry_ice_weight]
+            }
+          )
+        end
+        
+        if package[:dangerous_goods]
+          dangerous_goods_type = package[:dangerous_goods_type] || PackageSpecialServiceTypes::DANGEROUS_GOODS
+          line_item[:SpecialServicesRequested][:SpecialServiceTypes] << dangerous_goods_type
+
+          line_item[:SpecialServicesRequested].merge!(
+            :DangerousGoodsDetail => {
+              :Accessibility => package[:dangerous_goods_accessibility] || DangerousGoodsAccessibilityTypes::INACCESSIBLE
+            }
+          )
+        end
+        
+        line_items << line_item
       end
-      if options[:dangerous_goods]
-        dangerous_goods_type = options[:dangerous_goods_type] || PackageSpecialServiceTypes::DANGEROUS_GOODS
-        line_items[:SpecialServicesRequested][:SpecialServiceTypes] << dangerous_goods_type
-
-        line_items[:SpecialServicesRequested].merge!(
-          :DangerousGoodsDetail => {
-            :Accessibility => options[:dangerous_goods_accessibility] || DangerousGoodsAccessibilityTypes::INACCESSIBLE
-          }
-        )
-      end
-
-      [line_items]
+      
+      line_items
     end
 
   end

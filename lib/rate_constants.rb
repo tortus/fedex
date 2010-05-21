@@ -18,6 +18,7 @@ module Fedex
   # {http://fedex.com/ws/rate/v5}RequestedPackageDetailType
   module RequestedPackageDetailTypes
     INDIVIDUAL_PACKAGES = "INDIVIDUAL_PACKAGES"
+    PACKAGE_GROUPS = "PACKAGE_GROUPS"
     PACKAGE_SUMMARY = "PACKAGE_SUMMARY"
   end
 
