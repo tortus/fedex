@@ -364,7 +364,11 @@ module Fedex #:nodoc:
     def check_required_options(option_set_name, options = {})
       required_options = REQUIRED_OPTIONS[option_set_name]
       missing = []
-      required_options.each{|option| missing << option if options.nil? || options[option].nil?}
+
+      options = [options] unless options.is_a?(Array)
+      options.each do |option_hash|
+        required_options.each{|option| missing << option if option_hash.nil? || option_hash[option].nil?}
+      end
 
       unless missing.empty?
         raise MissingInformationError.new("Missing #{missing.collect{|m| ":#{m}"}.join(', ')} for #{option_set_name.to_s.humanize.downcase}")
@@ -592,7 +596,7 @@ module Fedex #:nodoc:
     end
     
     def intl_commodity_line_items(options)
-      options[:commodities].collect do |commodity|
+      @intl[:commodities].collect do |commodity|
         check_required_options(:commodity, commodity)
         check_two_letter_country_code(:country_of_manufacture, commodity, commodity[:country_of_manufacture])
         
@@ -633,7 +637,7 @@ module Fedex #:nodoc:
       @intl[:duties_payment_type]         = options[:duties_payment_type]                   ||  @payment_type
       @intl[:duties_payor_acct]           = options[:duties_payor_acct]                     ||  @account_number
       @intl[:duties_payor_country]        = options[:duties_payor_country]                  ||  options[:shipper][:address][:country]      
-      @intl[:commodities]                 = options[:commodities]
+      @intl[:commodities]                 = options[:packages] ? options[:packages].map{|p| p[:commodities]}.flatten : options[:commodities]
       
       # Checking commodities + calculating total customs value
       calculated_custom_total = 0.0
