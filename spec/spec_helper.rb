@@ -52,8 +52,59 @@ def xml_same?(str_a, str_b)
   #     end
   #   end
   #   debugger 
-  # end
-  
+  # end  
 
   sta == stb
+end
+
+def shipper_address
+  person = {
+    :name => 'Shipper Name',
+    :phone_number => '5555555555',    
+  }
+  origin = {
+    :street => '123 4th St',
+    :city => 'Austin',
+    :state => 'TX',
+    :zip => 78701,
+    :country => 'US'
+  }
+  {:contact => person, :address => origin}
+end
+
+def recipient_address
+  person = {
+    :name => 'Recipient Name',
+    :phone_number => '4444444444',
+  }
+  origin = {
+    :street => '321 4th St',
+    :city => 'Austin',
+    :state => 'TX',
+    :zip => 78701,
+    :country => 'US'
+  }
+  {:contact => person, :address => origin}
+end
+
+def intl_recipient_address
+  person = {
+    :name => 'Metrotown Centre',
+    :phone_number => '4444444444',
+  }
+  origin = {
+    :street => '4800 Kingsway',
+    :city => 'Burnaby',
+    :state => 'BC',
+    :zip => 'V5H4J2',
+    :country => 'CA'
+  }
+  {:contact => person, :address => origin}
+end
+
+# Any pointers on how to mock out SOAP4R calls to not hit FedEx servers but to still allow access to generated XML would be greated appreciated.
+def get_requests
+  @requests = @dump.gsub(/\n1000\n/, '').scan(/(<env:Envelope.+?<\/env:Envelope>)/m).to_a
+  @dump = ''
+  return @requests
 end

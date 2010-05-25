@@ -28,14 +28,15 @@ module Fedex #:nodoc:
     
     # Defines the required parameters for various methods
     REQUIRED_OPTIONS = {
-      :base        => [ :auth_key, :security_code, :account_number, :meter_number ],
-      :price       => [ :shipper, :recipient, :weight ],
-      :label       => [ :shipper, :recipient, :service_type ],
-      :package     => [ :weight ],
-      :contact     => [ :name, :phone_number ],
-      :address     => [ :country, :street, :city, :state, :zip ],
-      :ship_cancel => [ :tracking_number ],
-      :intl        => [ :customs_value, :packages ]
+      :base                    => [ :auth_key, :security_code, :account_number, :meter_number ],
+      :price                   => [ :shipper, :recipient, :weight ],
+      :label                   => [ :shipper, :recipient, :service_type ],
+      :package                 => [ :weight ],
+      :international_package   => [ :weight, :commodities ],
+      :contact                 => [ :name, :phone_number ],
+      :address                 => [ :country, :street, :city, :state, :zip ],
+      :ship_cancel             => [ :tracking_number ],
+      :commodity               => [ :weight, :unit_price ]
     }
     
     # Defines the relative path to the WSDL files.  Defaults assume lib/wsdl under plugin directory.
@@ -114,9 +115,7 @@ module Fedex #:nodoc:
       @debug              = options[:debug]             || false
       @wiredump           = options[:wiredump]          || STDOUT
       @environment        = options[:environment]       || (defined?(RAILS_ENV) && 'production' == RAILS_ENV ? 'production' : 'development')
-      @environment        = @environment.to_sym
-      
-      set_international_option_defaults(options)  if international_shipment?(options)
+      @environment        = @environment.to_sym      
     end
     
     # Gets a rate quote from Fedex.
@@ -237,13 +236,15 @@ module Fedex #:nodoc:
       single_package = options[:packages].nil? || options[:packages].length == 1
       
       check_shipping_options(options)
-      
+      set_international_option_defaults(options)  if international_shipment?(options)
+
       # Build shipment options
+      check_type = international_shipment?(options) ? :international_package : :package
       first_package = if options[:packages]
-        options[:packages].each{|p| check_required_options(:package, p) }
+        options[:packages].each{|p| check_required_options(check_type, p) }
         options[:packages].first
       else # Check old-style inline API
-        check_required_options(:package, options)
+        check_required_options(check_type, options)
         options
       end
       shipment_details = build_shipment_options(:ship, options, first_package, :master => !single_package)
@@ -294,8 +295,15 @@ module Fedex #:nodoc:
       msg = error_msg(result, false)
       if successful && msg !~ /There are no valid services available/
         xml = result.completedShipmentDetail
-        pre = xml.completedPackageDetails.packageRating.packageRateDetails  # shipmentRating.shipmentRateDetails
-        charge = ((pre.class == Array ? pre[0].netCharge.amount.to_f : pre.netCharge.amount.to_f) * 100).to_i
+        
+        # Grab package level details if available, or else shipmentment level
+        charge = if xml.completedPackageDetails.respond_to?(:packageRating)
+          pre = xml.completedPackageDetails.packageRating.packageRateDetails  
+          ((pre.class == Array ? pre[0].netCharge.amount.to_f : pre.netCharge.amount.to_f) * 100).to_i
+        else 
+          pre = result.completedShipmentDetail.shipmentRating.shipmentRateDetails
+          ((pre.class == Array ? pre[0].totalNetFedExCharge.amount.to_f : pre.totalNetFedExCharge.amount.to_f) * 100).to_i
+        end
         tracking_number = xml.completedPackageDetails.trackingIds.trackingNumber        
         master_tracking_number = xml.respond_to?(:masterTrackingId) ? xml.masterTrackingId.trackingNumber : nil
         
@@ -344,10 +352,11 @@ module Fedex #:nodoc:
     end
 
     # Checks the supplied address to ensure the country is a two-letter code
-    def check_two_letter_country_code(type, options)
-      return true if 2 == options[type][:address][:country].length
+    def check_two_letter_country_code(type, options, country = nil)
+      country ||= options[type][:address][:country]
+      return true if 2 == country.length
       
-      err_msg = "Country '#{options[type][:address][:country]}' must be provided as a two-letter ISO country code"
+      err_msg = "Country '#{country}' must be provided as a two-letter ISO country code"
       raise MissingInformationError.new("Error in #{type.to_s.humanize} Address: #{err_msg}")
     end
 
@@ -358,7 +367,7 @@ module Fedex #:nodoc:
       required_options.each{|option| missing << option if options.nil? || options[option].nil?}
 
       unless missing.empty?
-        raise MissingInformationError.new("Missing #{missing.collect{|m| ":#{m}"}.join(', ')} for #{option_set_name}")
+        raise MissingInformationError.new("Missing #{missing.collect{|m| ":#{m}"}.join(', ')} for #{option_set_name.to_s.humanize.downcase}")
       end
     end
 
@@ -442,7 +451,7 @@ module Fedex #:nodoc:
       service_type        = options[:service_type]
       service_type        = resolve_service_type(service_type, residential) if service_type
 
-      common_options(service||:crs).merge(
+      opts = common_options(service||:crs).merge(
         :RequestedShipment => {
           :Shipper => {
             :Contact => {
@@ -494,11 +503,13 @@ module Fedex #:nodoc:
           :PackageDetailSpecified => true,
           :TotalWeight => { :Units => @units, :Value => weight },
           :PreferredCurrency => @currency,
-          :RequestedPackageLineItems => package_line_items(package, multi_options)
+          :RequestedPackageLineItems => package_line_items(package, multi_options),
+          :InternationalDetail => international_shipment?(options) ? international_shipping_options(options) : nil
         }
-      ).merge(
-        international_shipment?(options) ? international_shipping_options(options) : {}
       )
+      
+      
+      return opts
     end
         
     def package_line_items(package, more = {})
@@ -552,47 +563,93 @@ module Fedex #:nodoc:
     # Return the options required for shipping internationally
     def international_shipping_options(options)
       {
-        :InternationalDocumentContentType => @intl[:content_type],
+        :DocumentContent => @intl[:content_type],
         :AdmissibilityPackageType => @intl[:admissibility_package_type],
-        :RequestedShipment => {
-          :ShipTimeStamp => Time.now.iso8601,
-          :Date => Date.today,
-        },
         :TermsOfSale => @intl[:terms_of_sale],
-        :FreightCharge => @intl[:freight_charge],
-        :InsuranceCharge => @intl[:insurance_charge],
         :RegulatoryControlType => @intl[:regulator_control_type],
-        :CustomsValue => @intl[:customs_value],
         :Purpose => @intl[:purpose],
-        :Commodity => {
-          :NumberOfPieces => 1,
-          :Description => options[:commodity][:description],
-          :CountryOfManufacture => options[:commodity][:country_of_manufacture],
-          :Quantity => options[:commodity][:quantity],
-          :Units => options[:commodity][:units],
-          :Weight => options[:weight],
-          :UnitPrice => options[:unit_price],
-          :Amount => options[:unit_price] * options[:units],
-        }
+        :CustomsValue => {
+          :Currency => @currency,
+          :Amount => @intl[:total_customs_value]
+        },
+        :FreightCharge => {
+          :Currency => @currency,
+          :Amount => @intl[:freight_charge]
+        },
+        :InsuranceCharge => {
+          :Currency => @currency,
+          :Amount => @intl[:insurance_charge]
+        },
+        :DutiesPayment => {
+          :PaymentType => @intl[:duties_payment_type],
+          :Payor => {
+              :AccountNumber => @intl[:duties_payor_acct],
+              :CountryCode => @intl[:duties_payor_country]
+          }
+        },        
+        :Commodities => intl_commodity_line_items(options)
       }
     end
     
+    def intl_commodity_line_items(options)
+      options[:commodities].collect do |commodity|
+        check_required_options(:commodity, commodity)
+        check_two_letter_country_code(:country_of_manufacture, commodity, commodity[:country_of_manufacture])
+        
+        {
+          :Description => commodity[:description],
+          :CountryOfManufacture => commodity[:country_of_manufacture],
+          :HarmonizedCode => commodity[:harmonized_code],
+          :NumberOfPieces => commodity[:number_of_pieces],
+          :QuantityUnits => commodity[:number_of_pieces_units],
+          :Weight => {
+            :Units => @units,
+            :Value => commodity[:weight],
+          },
+          :Quantity => commodity[:quantity],
+          :UnitPrice => {
+            :Currency => @currency,
+            :Amount => commodity[:unit_price]
+          },
+          :CustomsValues => {
+            :Currency => @currency,
+            :Amount => commodity[:customs_value],
+          },
+          :ExportLicenseNumber => commodity[:export_license_number],
+          :ExportLicenseExpirationDate => commodity[:export_license_expiration_date]
+        }
+      end
+    end
 
-    # Date.today format
-    ### allow passing in multiple items (commodities?) and doing MPS stuff (since each commod needs own data anyway)
-    ### raise missing info errors if needed not passed for itnernational    
     def set_international_option_defaults(options)
-      check_required_options(:intl, options)
-
       @intl = {}
       @intl[:content_type]                = options[:international_document_content_type]   ||  InternationalDocumentContentTypes::NON_DOCUMENTS
       @intl[:admissibility_package_type]  = options[:admissibility_package_type]            ||  AdmissibilityPackageTypes::BOX # "Other packaging"
       @intl[:terms_of_sale]	              = options[:terms_of_sale]                         ||  TermsOfSaleTypes::FOB_OR_FCA # default, shipper pays
-      @intl[:freight_charge]	            = options[:freight_charge]                        ||  0
-      @intl[:insurance_charge]	          = options[:insurance_charge]                      ||  0
+      @intl[:freight_charge]	            = options[:freight_charge]                        ||  0.00
+      @intl[:insurance_charge]	          = options[:insurance_charge]                      ||  0.00
       @intl[:regulatory_control_type]	    = options[:regulatory_control_type]               ||  nil
-      @intl[:purpose]	                    = options[:purpose]                               ||  PurposeOfShipmentTypes::SOLD
-      @intl[:customs_value]	              = options[:customs_value]
+      @intl[:purpose]	                    = options[:purpose]                               ||  PurposeOfShipmentTypes::SOLD      
+      @intl[:duties_payment_type]         = options[:duties_payment_type]                   ||  @payment_type
+      @intl[:duties_payor_acct]           = options[:duties_payor_acct]                     ||  @account_number
+      @intl[:duties_payor_country]        = options[:duties_payor_country]                  ||  options[:shipper][:address][:country]      
+      @intl[:commodities]                 = options[:commodities]
+      
+      # Checking commodities + calculating total customs value
+      calculated_custom_total = 0.0
+      @intl[:commodities].each do |commodity|
+        check_required_options(:commodity, commodity)
+        commodity[:number_of_pieces]        ||= 1
+        commodity[:quantity]                ||= 1
+        commodity[:number_of_pieces_units]  ||= QuantityUnits::EA                           # Could be 'EA' or 'DZ'
+        commodity[:customs_value]             = commodity[:unit_price] * commodity[:quantity]
+        calculated_custom_total             += commodity[:customs_value]
+      end
+      
+      @intl[:total_customs_value]	        = options[:total_customs_value]                   || calculated_custom_total
+      unless @intl[:total_customs_value] == calculated_custom_total
+        raise "Provided total_customs_value #{@intl[:total_customs_value]} doesn't equal calculated value #{calculated_custom_total}!"
+      end
     end
 
 

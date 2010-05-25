@@ -1,4 +1,4 @@
 .DS_Store
 .svn
 lib/wsdl
-spec/auth_info.rb
+auth_info
