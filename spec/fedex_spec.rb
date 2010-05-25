@@ -1,14 +1,5 @@
 require File.dirname(__FILE__) + '/spec_helper.rb'
-
-def auth
-  {
-    :auth_key       => 'KEY',
-    :security_code  => 'PASSWORD',
-    :account_number => 'ACCOUNT',
-    :meter_number   => 'METER'
-  }  
-end
-
+require File.dirname(__FILE__) + '/auth_info.rb'
 
 def shipper_address
   person = {
