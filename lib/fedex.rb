@@ -219,12 +219,32 @@ module Fedex #:nodoc:
     #
     # Returns the actual price for the label, the Base64-decoded label in the format specified in Fedex::Base,
     # and the tracking_number for the shipment.
+    # 
+    # Can ship multiple packages in a single MPS shipment by passing multiples values to the :packages option.
+    # MPS shipments will return an array of all labels as the second return value and the master tracking 
+    # number (which can be used to track all packages) as the third.
     #
+    # If shipping internationally, each packages contains one or more commodities with various required and
+    # optional options.
+    # 
     # === Required options for label
     #   :shipper      - A hash containing contact information and an address for the shipper.  (See below.)
     #   :recipient    - A hash containing contact information and an address for the recipient.  (See below.)
-    #   :weight       - The total weight of the shipped package.
     #   :service_type - One of Fedex::ShipConstants::ServiceTypes
+    #   :packages     - An array of hashes of package-specific data
+    #
+    # === Package-specific required options
+    #   :weight       - The weight of this specific package.
+    #
+    # === Package-specific optional options
+    #   :commodities  - An array of hashes of commodity-specific data
+    #
+    # === Commodity-specific required options (international shipments only)
+    #   :weight       - The weight of this specific commodity
+    #   :unit_price   - Value of one unit of this specific commodity (if no quatity provided, defaults to one unit)
+    #
+    # === Commodity-specific optional options (international shipments only)
+    #   THERE ARE MANY - See +set_international_option_defaults+ for details
     #
     # === Address format
     # The 'shipper' and 'recipient' address values should be hashes. Like this:

@@ -6,4 +6,5 @@ def auth
     :account_number => 'ACCOUNT',
     :meter_number   => 'METER'
   }
+
 end
