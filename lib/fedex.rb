@@ -81,17 +81,17 @@ module Fedex #:nodoc:
     #   :meter_number   - Your Fedex Meter Number
     #
     # === Additional options
-    #   :dropoff_type       - One of Fedex::DropoffTypes.  Defaults to DropoffTypes::REGULAR_PICKUP
-    #   :packaging_type     - One of Fedex::PackagingTypes.  Defaults to PackagingTypes::YOUR_PACKAGING
-    #   :label_type         - One of Fedex::LabelFormatTypes.  Defaults to LabelFormatTypes::COMMON2D.  You'll only need to change this
+    #   :dropoff_type       - One of Fedex::ShipConstants::DropoffTypes.  Defaults to DropoffTypes::REGULAR_PICKUP
+    #   :packaging_type     - One of Fedex::ShipConstants::PackagingTypes.  Defaults to PackagingTypes::YOUR_PACKAGING
+    #   :label_type         - One of Fedex::ShipConstants::LabelFormatTypes.  Defaults to LabelFormatTypes::COMMON2D.  You'll only need to change this
     #                         if you're generating completely custom labels with a format of your own design.  If printing to Fedex stock
     #                         leave this alone.
-    #   :label_image_type   - One of Fedex::LabelSpecificationImageTypes.  Defaults to LabelSpecificationImageTypes::PDF.
-    #   :label_stock_type   - One of Fedex::LabelStockTypes.  Defaults to LabelStockTypes::PAPER_85X11_TOP_HALF_LABEL.
-    #   :rate_request_type  - One of Fedex::RateRequestTypes.  Defaults to RateRequestTypes::ACCOUNT
-    #   :payment            - One of Fedex::PaymentTypes.  Defaults to PaymentTypes::SENDER
-    #   :units              - One of Fedex::WeightUnits.  Defaults to WeightUnits::LB
-    #   :currency           - One of Fedex::CurrencyTypes.  Defaults to CurrencyTypes::USD
+    #   :label_image_type   - One of Fedex::ShipConstants::ShippingDocumentImageTypes.  Defaults to ShippingDocumentImageTypes::PDF.
+    #   :label_stock_type   - One of Fedex::ShipConstants::LabelStockTypes.  Defaults to LabelStockTypes::PAPER_85X11_TOP_HALF_LABEL.
+    #   :rate_request_type  - One of Fedex::ShipConstants::RateRequestTypes.  Defaults to RateRequestTypes::ACCOUNT
+    #   :payment            - One of Fedex::ShipConstants::PaymentTypes.  Defaults to PaymentTypes::SENDER
+    #   :units              - One of Fedex::ShipConstants::WeightUnits.  Defaults to WeightUnits::LB
+    #   :currency           - Defaults to 'USD'
     #   :debug              - Enable or disable debug (wiredump) output.  Defaults to false.
     #   :environment        - Connect to production or development FedEx servers. Defaults to production if RAILS_ENV == production, 
     #                         else development
@@ -103,15 +103,15 @@ module Fedex #:nodoc:
       @account_number     = options[:account_number]
       @meter_number       = options[:meter_number]
                         
-      @dropoff_type       = options[:dropoff_type]      || DropoffTypes::REGULAR_PICKUP
-      @packaging_type     = options[:packaging_type]    || PackagingTypes::YOUR_PACKAGING
-      @label_type         = options[:label_type]        || LabelFormatTypes::COMMON2D
-      @label_image_type   = options[:label_image_type]  || LabelSpecificationImageTypes::PDF
-      @label_stock_type   = options[:label_stock_type]  || LabelStockTypes::PAPER_85X11_TOP_HALF_LABEL
-      @rate_request_type  = options[:rate_request_type] || RateRequestTypes::LIST
-      @payment_type       = options[:payment]           || PaymentTypes::SENDER
-      @units              = options[:units]             || WeightUnits::LB
-      @currency           = options[:currency]          || CurrencyTypes::USD
+      @dropoff_type       = options[:dropoff_type]      || Fedex::ShipConstants::DropoffTypes::REGULAR_PICKUP
+      @packaging_type     = options[:packaging_type]    || Fedex::ShipConstants::PackagingTypes::YOUR_PACKAGING
+      @label_type         = options[:label_type]        || Fedex::ShipConstants::LabelFormatTypes::COMMON2D
+      @label_image_type   = options[:label_image_type]  || Fedex::ShipConstants::ShippingDocumentImageTypes::PDF
+      @label_stock_type   = options[:label_stock_type]  || Fedex::ShipConstants::LabelStockTypes::PAPER_85X11_TOP_HALF_LABEL
+      @rate_request_type  = options[:rate_request_type] || Fedex::ShipConstants::RateRequestTypes::LIST
+      @payment_type       = options[:payment]           || Fedex::ShipConstants::PaymentTypes::SENDER
+      @units              = options[:units]             || Fedex::ShipConstants::WeightUnits::LB
+      @currency           = options[:currency]          || 'USD'
       @debug              = options[:debug]             || false
       @wiredump           = options[:wiredump]          || STDOUT
       @environment        = options[:environment]       || (defined?(RAILS_ENV) && 'production' == RAILS_ENV ? 'production' : 'development')
@@ -144,7 +144,7 @@ module Fedex #:nodoc:
     #
     # === Optional options
     #   :count                - How many packages are in the shipment. Defaults to 1.
-    #   :service_type         - One of Fedex::ServiceTypes. If not specified, Fedex gives you rates for all
+    #   :service_type         - One of Fedex::ShipConstants::ServiceTypes. If not specified, Fedex gives you rates for all
     #                           of the available service types (and you will receive a hash of prices instead of a
     #                           single price).
     #
@@ -224,7 +224,7 @@ module Fedex #:nodoc:
     #   :shipper      - A hash containing contact information and an address for the shipper.  (See below.)
     #   :recipient    - A hash containing contact information and an address for the recipient.  (See below.)
     #   :weight       - The total weight of the shipped package.
-    #   :service_type - One of Fedex::ServiceTypes
+    #   :service_type - One of Fedex::ShipConstants::ServiceTypes
     #
     # === Address format
     # The 'shipper' and 'recipient' address values should be hashes. Like this:
@@ -397,8 +397,8 @@ module Fedex #:nodoc:
     # via Fedex Groundto an address marked as residential the service type must
     # be set to ServiceTypes::GROUND_HOME_DELIVERY and not ServiceTypes::FEDEX_GROUND.
     def resolve_service_type(service_type, residential)
-      if residential && (service_type == ServiceTypes::FEDEX_GROUND)
-        ServiceTypes::GROUND_HOME_DELIVERY
+      if residential && (service_type == Fedex::ShipConstants::ServiceTypes::FEDEX_GROUND)
+        Fedex::ShipConstants::ServiceTypes::GROUND_HOME_DELIVERY
       else
         service_type
       end
@@ -503,7 +503,7 @@ module Fedex #:nodoc:
           :DropoffType => @dropoff_type,
           :ServiceType => service_type,
           :PackagingType => @packaging_type,
-          :PackageDetail => RequestedPackageDetailTypes::INDIVIDUAL_PACKAGES,
+          :PackageDetail => Fedex::ShipConstants::RequestedPackageDetailTypes::INDIVIDUAL_PACKAGES,
           :PackageDetailSpecified => true,
           :TotalWeight => { :Units => @units, :Value => weight },
           :PreferredCurrency => @currency,
@@ -529,24 +529,24 @@ module Fedex #:nodoc:
       }
 
       if package[:dry_ice]
-        dry_ice_type = package[:dry_ice_type] || PackageSpecialServiceTypes::DRY_ICE
+        dry_ice_type = package[:dry_ice_type] || Fedex::ShipConstants::PackageSpecialServiceTypes::DRY_ICE
         line_item[:SpecialServicesRequested][:SpecialServiceTypes] << dry_ice_type
 
         line_item[:SpecialServicesRequested].merge!(
           :DryIceWeight => {
-            :Units => package[:dry_ice_weight_units] || WeightUnits::KG,
+            :Units => package[:dry_ice_weight_units] || Fedex::ShipConstants::WeightUnits::KG,
             :Value => package[:dry_ice_weight]
           }
         )
       end
       
       if package[:dangerous_goods]
-        dangerous_goods_type = package[:dangerous_goods_type] || PackageSpecialServiceTypes::DANGEROUS_GOODS
+        dangerous_goods_type = package[:dangerous_goods_type] || Fedex::ShipConstants::PackageSpecialServiceTypes::DANGEROUS_GOODS
         line_item[:SpecialServicesRequested][:SpecialServiceTypes] << dangerous_goods_type
 
         line_item[:SpecialServicesRequested].merge!(
           :DangerousGoodsDetail => {
-            :Accessibility => package[:dangerous_goods_accessibility] || DangerousGoodsAccessibilityTypes::INACCESSIBLE
+            :Accessibility => package[:dangerous_goods_accessibility] || Fedex::ShipConstants::DangerousGoodsAccessibilityTypes::INACCESSIBLE
           }
         )
       end
@@ -627,13 +627,13 @@ module Fedex #:nodoc:
 
     def set_international_option_defaults(options)
       @intl = {}
-      @intl[:content_type]                = options[:international_document_content_type]   ||  InternationalDocumentContentTypes::NON_DOCUMENTS
-      @intl[:admissibility_package_type]  = options[:admissibility_package_type]            ||  AdmissibilityPackageTypes::BOX # "Other packaging"
-      @intl[:terms_of_sale]	              = options[:terms_of_sale]                         ||  TermsOfSaleTypes::FOB_OR_FCA # default, shipper pays
+      @intl[:content_type]                = options[:international_document_content_type]   ||  Fedex::ShipConstants::InternationalDocumentContentTypes::NON_DOCUMENTS
+      @intl[:admissibility_package_type]  = options[:admissibility_package_type]            ||  Fedex::ShipConstants::PhysicalPackagingTypes::BOX # "Other packaging"
+      @intl[:terms_of_sale]	              = options[:terms_of_sale]                         ||  Fedex::ShipConstants::TermsOfSaleTypes::FOB_OR_FCA # default, shipper pays
       @intl[:freight_charge]	            = options[:freight_charge]                        ||  0.00
       @intl[:insurance_charge]	          = options[:insurance_charge]                      ||  0.00
       @intl[:regulatory_control_type]	    = options[:regulatory_control_type]               ||  nil
-      @intl[:purpose]	                    = options[:purpose]                               ||  PurposeOfShipmentTypes::SOLD      
+      @intl[:purpose]	                    = options[:purpose]                               ||  Fedex::ShipConstants::PurposeOfShipmentTypes::SOLD      
       @intl[:duties_payment_type]         = options[:duties_payment_type]                   ||  @payment_type
       @intl[:duties_payor_acct]           = options[:duties_payor_acct]                     ||  @account_number
       @intl[:duties_payor_country]        = options[:duties_payor_country]                  ||  options[:shipper][:address][:country]      
@@ -645,7 +645,7 @@ module Fedex #:nodoc:
         check_required_options(:commodity, commodity)
         commodity[:number_of_pieces]        ||= 1
         commodity[:quantity]                ||= 1
-        commodity[:number_of_pieces_units]  ||= QuantityUnits::EA                           # Could be 'EA' or 'DZ'
+        commodity[:number_of_pieces_units]  ||= 'EA'  # Could be 'EA' or 'DZ'
         commodity[:customs_value]             = commodity[:unit_price] * commodity[:quantity]
         calculated_custom_total             += commodity[:customs_value]
       end
