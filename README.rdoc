@@ -97,7 +97,7 @@ Note that leaving out one or more required pieces of information for any method 
          from ./lib/fedex.rb:204:in `check_required_options'
          from ./lib/fedex.rb:37:in `initialize'
  
-For the purpose of demonstration we're using the PDF label type, which is the default.  PDFs are nice because they'll print onto a regular 8.5"x11" sheet of paper exactly the way Fedex needs them.  Additional options for printing are available.  See <tt>Fedex::LabelSpecificationImageTypes</tt> (defined in <tt>lib/{rate|ship}_constants.rb</tt>) for a list, which includes PNG and special formats designed for thermal printers.
+For the purpose of demonstration we're using the PDF label type, which is the default.  PDFs are nice because they'll print onto a regular 8.5"x11" sheet of paper exactly the way Fedex needs them.  Additional options for printing are available.  See <tt>Fedex::ShippingDocumentImageTypes</tt> (defined in <tt>lib/{rate|ship}_constants.rb</tt>) for a list, which includes PNG and special formats designed for thermal printers.
 
 Now let's get a Rate quote.  Define your origin, destination, number of packages, total weight, and shipping method.
 
@@ -126,7 +126,7 @@ Now let's get a Rate quote.  Define your origin, destination, number of packages
   }
   pkg_count = 1
   weight = 10
-  service_type = Fedex::ServiceTypes::STANDARD_OVERNIGHT
+  service_type = Fedex::ShipConstants::ServiceTypes::STANDARD_OVERNIGHT
 
 Pass these to your Fedex object:
 
