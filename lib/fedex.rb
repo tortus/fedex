@@ -300,9 +300,10 @@ module Fedex #:nodoc:
         charge = if xml.completedPackageDetails.respond_to?(:packageRating)
           pre = xml.completedPackageDetails.packageRating.packageRateDetails  
           ((pre.class == Array ? pre[0].netCharge.amount.to_f : pre.netCharge.amount.to_f) * 100).to_i
-        else 
-          pre = result.completedShipmentDetail.shipmentRating.shipmentRateDetails
+        elsif xml.respond_to?(:shipmentRating)
+          pre = xml.shipmentRating.shipmentRateDetails
           ((pre.class == Array ? pre[0].totalNetFedExCharge.amount.to_f : pre.totalNetFedExCharge.amount.to_f) * 100).to_i
+        else 0.0
         end
         tracking_number = xml.completedPackageDetails.trackingIds.trackingNumber        
         master_tracking_number = xml.respond_to?(:masterTrackingId) ? xml.masterTrackingId.trackingNumber : nil
