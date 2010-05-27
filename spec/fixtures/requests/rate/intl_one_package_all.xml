@@ -2,7 +2,7 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xmlns:env="http://schemas.xmlsoap.org/soap/envelope/">
   <env:Body>
-    <n1:ProcessShipmentRequest xmlns:n1="http://fedex.com/ws/ship/v8">
+    <n1:RateRequest xmlns:n1="http://fedex.com/ws/rate/v8">
       <n1:WebAuthenticationDetail>
         <n1:UserCredential>
           <n1:Key></n1:Key>
@@ -14,7 +14,7 @@
         <n1:MeterNumber></n1:MeterNumber>
       </n1:ClientDetail>
       <n1:Version>
-        <n1:ServiceId>ship</n1:ServiceId>
+        <n1:ServiceId>crs</n1:ServiceId>
         <n1:Major>8</n1:Major>
         <n1:Intermediate>0</n1:Intermediate>
         <n1:Minor>0</n1:Minor>
@@ -22,13 +22,11 @@
       <n1:RequestedShipment>
         <n1:ShipTimestamp></n1:ShipTimestamp>
         <n1:DropoffType>REGULAR_PICKUP</n1:DropoffType>
-        <n1:ServiceType>INTERNATIONAL_ECONOMY</n1:ServiceType>
         <n1:PackagingType>YOUR_PACKAGING</n1:PackagingType>
         <n1:TotalWeight>
           <n1:Units>LB</n1:Units>
-          <n1:Value>5.3125</n1:Value>
+          <n1:Value>4.3125</n1:Value>
         </n1:TotalWeight>
-        <n1:PreferredCurrency>USD</n1:PreferredCurrency>
         <n1:Shipper>
           <n1:Contact>
             <n1:PersonName>Shipper Name</n1:PersonName>
@@ -59,7 +57,7 @@
         <n1:ShippingChargesPayment>
           <n1:PaymentType>SENDER</n1:PaymentType>
           <n1:Payor>
-            <n1:AccountNumber>510087607</n1:AccountNumber>
+            <n1:AccountNumber>211669799</n1:AccountNumber>
             <n1:CountryCode>US</n1:CountryCode>
           </n1:Payor>
         </n1:ShippingChargesPayment>
@@ -67,55 +65,24 @@
           <n1:DutiesPayment>
             <n1:PaymentType>SENDER</n1:PaymentType>
             <n1:Payor>
-              <n1:AccountNumber>510087607</n1:AccountNumber>
+              <n1:AccountNumber>211669799</n1:AccountNumber>
               <n1:CountryCode>US</n1:CountryCode>
             </n1:Payor>
           </n1:DutiesPayment>
           <n1:DocumentContent>NON_DOCUMENTS</n1:DocumentContent>
           <n1:CustomsValue>
             <n1:Currency>USD</n1:Currency>
-            <n1:Amount>300</n1:Amount>
+            <n1:Amount>100</n1:Amount>
           </n1:CustomsValue>
           <n1:Commodities>
+            <n1:Name>Commodity A</n1:Name>
             <n1:NumberOfPieces>1</n1:NumberOfPieces>
             <n1:Description>Description of Commodity A</n1:Description>
             <n1:CountryOfManufacture>US</n1:CountryOfManufacture>
             <n1:HarmonizedCode>060110</n1:HarmonizedCode>
             <n1:Weight>
               <n1:Units>LB</n1:Units>
-              <n1:Value>3.3123</n1:Value>
-            </n1:Weight>
-            <n1:Quantity>1</n1:Quantity>
-            <n1:QuantityUnits>EA</n1:QuantityUnits>
-            <n1:UnitPrice>
-              <n1:Currency>USD</n1:Currency>
-              <n1:Amount>100</n1:Amount>
-            </n1:UnitPrice>
-          </n1:Commodities>
-          <n1:Commodities>
-            <n1:NumberOfPieces>1</n1:NumberOfPieces>
-            <n1:Description>Description of Commodity B</n1:Description>
-            <n1:CountryOfManufacture>US</n1:CountryOfManufacture>
-            <n1:HarmonizedCode>060110</n1:HarmonizedCode>
-            <n1:Weight>
-              <n1:Units>LB</n1:Units>
-              <n1:Value>1</n1:Value>
-            </n1:Weight>
-            <n1:Quantity>2</n1:Quantity>
-            <n1:QuantityUnits>EA</n1:QuantityUnits>
-            <n1:UnitPrice>
-              <n1:Currency>USD</n1:Currency>
-              <n1:Amount>50</n1:Amount>
-            </n1:UnitPrice>
-          </n1:Commodities>
-          <n1:Commodities>
-            <n1:NumberOfPieces>1</n1:NumberOfPieces>
-            <n1:Description>Description of Commodity A</n1:Description>
-            <n1:CountryOfManufacture>US</n1:CountryOfManufacture>
-            <n1:HarmonizedCode>060110</n1:HarmonizedCode>
-            <n1:Weight>
-              <n1:Units>LB</n1:Units>
-              <n1:Value>1</n1:Value>
+              <n1:Value>4.3123</n1:Value>
             </n1:Weight>
             <n1:Quantity>1</n1:Quantity>
             <n1:QuantityUnits>EA</n1:QuantityUnits>
@@ -131,7 +98,7 @@
           <n1:LabelStockType>PAPER_8.5X11_TOP_HALF_LABEL</n1:LabelStockType>
         </n1:LabelSpecification>
         <n1:RateRequestTypes>LIST</n1:RateRequestTypes>
-        <n1:PackageCount>2</n1:PackageCount>
+        <n1:PackageCount>1</n1:PackageCount>
         <n1:PackageDetail>INDIVIDUAL_PACKAGES</n1:PackageDetail>
         <n1:RequestedPackageLineItems>
           <n1:SequenceNumber>1</n1:SequenceNumber>
@@ -143,6 +110,6 @@
           </n1:SpecialServicesRequested>
         </n1:RequestedPackageLineItems>
       </n1:RequestedShipment>
-    </n1:ProcessShipmentRequest>
+    </n1:RateRequest>
   </env:Body>
 </env:Envelope>

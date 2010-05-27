@@ -29,7 +29,7 @@ module Fedex #:nodoc:
     # Defines the required parameters for various methods
     REQUIRED_OPTIONS = {
       :base                    => [ :auth_key, :security_code, :account_number, :meter_number ],
-      :price                   => [ :shipper, :recipient, :weight ],
+      :price                   => [ :shipper, :recipient ],
       :label                   => [ :shipper, :recipient, :service_type ],
       :package                 => [ :weight ],
       :international_package   => [ :weight, :commodities ],
@@ -159,53 +159,39 @@ module Fedex #:nodoc:
     #    :zip => '20500'
     #  }
     def price(options = {})
-      puts options.inspect if $DEBUG
+      first_package = check_shipping_options(:price, options)
+      set_international_option_defaults(:price, options)  if international_shipment?(options)  
+  
+      # Build shipment details for rate request
+      rate_request_details = build_shipment_options(:crs, options, first_package)
+      process_rate_request( rate_request_details )
+    end
 
-      # Check overall options
-      check_required_options(:price, options)
+    def extract_price_from_rate_request(reply_detail)
+      shipment_details = reply_detail.ratedShipmentDetails
 
-      # Check Address Options
-      check_required_options(:contact, options[:shipper][:contact])
-      check_required_options(:address, options[:shipper][:address])
-      check_two_letter_country_code(:shipper, options)
-
-      # Check Contact Options
-      check_required_options(:contact, options[:recipient][:contact])
-      check_required_options(:address, options[:recipient][:address])
-      check_two_letter_country_code(:recipient, options)
-
-      # Build shipment options
-      options = build_shipment_options(:crs, options) 
-
-      # Process the rate request 
-      driver = create_driver(:rate)
-      result = driver.getRates(options)
-
-      extract_price = proc do |reply_detail|
-        shipment_details = reply_detail.ratedShipmentDetails
-        price = nil
-        for shipment_detail in shipment_details
-          rate_detail = shipment_detail.shipmentRateDetail
-          if rate_detail.rateType == "PAYOR_#{@rate_request_type}"
-            price = (rate_detail.totalNetCharge.amount.to_f * 100).to_i
-            break
-          end
-        end
-        if price
-          return price
-        else
-          raise "Couldn't find Fedex price in response!"
-        end
+      for shipment_detail in shipment_details
+        rate_detail = shipment_detail.shipmentRateDetail
+        next unless rate_detail.rateType == "PAYOR_#{@rate_request_type}_PACKAGE" || rate_detail.rateType == "PAYOR_#{@rate_request_type}_SHIPMENT"
+        return (rate_detail.totalNetCharge.amount.to_f * 100).to_i
       end
+      
+      raise "Couldn't find Fedex price in response!"
+    end
 
+    # Process the rate request 
+    def process_rate_request( rate_request_details )
+      driver = create_driver(:rate)
+      result = driver.getRates(rate_request_details)
+      
       msg = error_msg(result, false)
       if successful?(result) && msg !~ /There are no valid services available/
         reply_details = result.rateReplyDetails
         if reply_details.respond_to?(:ratedShipmentDetails)
-          price = extract_price.call(reply_details)
-          service_type ? price : { reply_details.serviceType => price }
+          price = extract_price_from_rate_request(reply_details)
+          @service_type ? price : { reply_details.serviceType => price }
         else
-          reply_details.inject({}) {|h,r| h[r.serviceType] = extract_price.call(r); h }
+          reply_details.inject({}) {|h,r| h[r.serviceType] = extract_price_from_rate_request(r); h }
         end
       else
         raise FedexError.new("Unable to retrieve price from Fedex: #{msg}")
@@ -254,20 +240,11 @@ module Fedex #:nodoc:
     #             :address => address} # See "Address" for under price.
     def label(options = {})
       single_package = options[:packages].nil? || options[:packages].length == 1
-      
-      check_shipping_options(options)
-      set_international_option_defaults(options)  if international_shipment?(options)
+      first_package = check_shipping_options(:label, options)
+      set_international_option_defaults(:ship, options)  if international_shipment?(options)
 
       # Build shipment options
-      check_type = international_shipment?(options) ? :international_package : :package
-      first_package = if options[:packages]
-        options[:packages].each{|p| check_required_options(check_type, p) }
-        options[:packages].first
-      else # Check old-style inline API
-        check_required_options(check_type, options)
-        options
-      end
-      shipment_details = build_shipment_options(:ship, options, first_package, :master => !single_package)
+      shipment_details = build_shipment_options(:ship, options, first_package)
 
       if single_package
         # Process the shipment request
@@ -290,11 +267,11 @@ module Fedex #:nodoc:
     end
 
 
-    def check_shipping_options(options)
+    def check_shipping_options(kind, options)
       puts options.inspect if $DEBUG
 
       # Check overall options
-      check_required_options(:label, options)
+      check_required_options(kind, options)
 
       # Check Address Options
       check_required_options(:contact, options[:shipper][:contact])
@@ -305,6 +282,15 @@ module Fedex #:nodoc:
       check_required_options(:contact, options[:recipient][:contact])
       check_required_options(:address, options[:recipient][:address])
       check_two_letter_country_code(:recipient, options)
+      
+      check_type = international_shipment?(options) && :ship == kind ? :international_package : :package
+      first_package = if options[:packages]
+        options[:packages].each{|p| check_required_options(check_type, p) }
+        options[:packages].first
+      else # Check old-style inline API
+        check_required_options(check_type, options)
+        options
+      end
     end
 
     def process_shipment(options)
@@ -452,7 +438,7 @@ module Fedex #:nodoc:
       end
     end
 
-    def build_shipment_options(service, options, package, multi_options)
+    def build_shipment_options(service, options, package, multi_options = {})
       # Prepare variables
       order_number        = options[:order_number] || ''
 
@@ -473,8 +459,8 @@ module Fedex #:nodoc:
 
       residential         = !!recipient_address[:residential]
 
-      service_type        = options[:service_type]
-      service_type        = resolve_service_type(service_type, residential) if service_type
+      @service_type        = options[:service_type]
+      @service_type        = resolve_service_type(service_type, residential) if @service_type
 
       opts = common_options(service||:crs).merge(
         :RequestedShipment => {
@@ -528,7 +514,7 @@ module Fedex #:nodoc:
           :PackageDetailSpecified => true,
           :TotalWeight => { :Units => @units, :Value => weight },
           :PreferredCurrency => @currency,
-          :RequestedPackageLineItems => package_line_items(package, multi_options),
+          :RequestedPackageLineItems => package_line_items(service, options[:packages], package, multi_options),
           :InternationalDetail => international_shipment?(options) ? international_shipping_options(options) : nil
         }
       )
@@ -536,8 +522,22 @@ module Fedex #:nodoc:
       
       return opts
     end
-        
-    def package_line_items(package, more = {})
+    
+    # If shipping, each package gets its own request. Rate requests bundle them all into one
+    def package_line_items(service, all_packages, package, more = {})
+      #
+      #
+      # TODO - THIS IS WRONG FOR multipackage SHIPMENTS!
+      #
+      #
+      if :ship == 'service' || all_packages.nil?
+        [package_line_item(package, more)]
+      else
+        all_packages.collect{|p| package_line_item(p, more) }
+      end
+    end
+    
+    def package_line_item(package, more = {})
       line_item = {
         :SequenceNumber => more[:sequence] || 1,
         :Weight => {
@@ -572,7 +572,7 @@ module Fedex #:nodoc:
         )
       end
       
-      [line_item]
+      line_item
     end
 
     def international_shipment?(options)
@@ -620,8 +620,8 @@ module Fedex #:nodoc:
       @intl[:commodities].collect do |commodity|
         check_required_options(:commodity, commodity)
         check_two_letter_country_code(:country_of_manufacture, commodity, commodity[:country_of_manufacture])
-        
         {
+          :Name => commodity[:name],
           :Description => commodity[:description],
           :CountryOfManufacture => commodity[:country_of_manufacture],
           :HarmonizedCode => commodity[:harmonized_code],
@@ -646,7 +646,7 @@ module Fedex #:nodoc:
       end
     end
 
-    def set_international_option_defaults(options)
+    def set_international_option_defaults(kind, options)
       @intl = {}
       @intl[:content_type]                = options[:international_document_content_type]   ||  Fedex::ShipConstants::InternationalDocumentContentTypes::NON_DOCUMENTS
       @intl[:admissibility_package_type]  = options[:admissibility_package_type]            ||  Fedex::ShipConstants::PhysicalPackagingTypes::BOX # "Other packaging"
@@ -658,12 +658,12 @@ module Fedex #:nodoc:
       @intl[:duties_payment_type]         = options[:duties_payment_type]                   ||  @payment_type
       @intl[:duties_payor_acct]           = options[:duties_payor_acct]                     ||  @account_number
       @intl[:duties_payor_country]        = options[:duties_payor_country]                  ||  options[:shipper][:address][:country]      
-      @intl[:commodities]                 = options[:packages] ? options[:packages].map{|p| p[:commodities]}.flatten : options[:commodities]
+      @intl[:commodities]                 = options[:packages] ? options[:packages].map{|p| p[:commodities] || []}.flatten : options[:commodities] || []
       
       # Checking commodities + calculating total customs value
       calculated_custom_total = 0.0
       @intl[:commodities].each do |commodity|
-        check_required_options(:commodity, commodity)
+        check_required_options(:commodity, commodity) if :ship == kind
         commodity[:number_of_pieces]        ||= 1
         commodity[:quantity]                ||= 1
         commodity[:number_of_pieces_units]  ||= 'EA'  # Could be 'EA' or 'DZ'

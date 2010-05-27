@@ -18,8 +18,12 @@ require 'fedex'
 
 require 'ruby-debug'
 
-def fixture_file(dirname, filename)
-  File.read(File.dirname(__FILE__) + "/fixtures/#{dirname}/#{filename}")
+def ship_fixture_file(dirname, filename)
+  File.read(File.dirname(__FILE__) + "/fixtures/#{dirname}/ship/#{filename}")
+end
+
+def rate_fixture_file(dirname, filename)
+  File.read(File.dirname(__FILE__) + "/fixtures/#{dirname}/rate/#{filename}")
 end
 
 def strip_tag_contents(str, *tags)
@@ -100,6 +104,18 @@ def intl_recipient_address
     :country => 'CA'
   }
   {:contact => person, :address => origin}
+end
+
+def commodity(name, weight, unit_price, quantity = 1)
+  {
+    :name => name,
+    :description => "Description of #{name}",
+    :country_of_manufacture => "US",
+    :harmonized_code => '060110',
+    :quantity => quantity,
+    :weight => weight,
+    :unit_price => unit_price,
+  }
 end
 
 # Any pointers on how to mock out SOAP4R calls to not hit FedEx servers but to still allow access to generated XML would be greated appreciated.
