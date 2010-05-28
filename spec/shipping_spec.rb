@@ -150,7 +150,7 @@ describe Fedex do
       })
     # rescue Fedex::FedexError => e
     end
-  
+
     price.should > 5000
     tracking_number.length.should > 8
     get_requests

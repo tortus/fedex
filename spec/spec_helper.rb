@@ -8,6 +8,13 @@ def auth
   # }
 end
 
+# Allows developer to keep their auth info in an external (git-ignored) file while developing
+begin
+  require 'auth_info.rb'
+rescue
+  puts "Can't load auth info"
+end
+
 begin
   require 'spec'
 rescue LoadError

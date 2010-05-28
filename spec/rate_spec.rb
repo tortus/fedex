@@ -40,7 +40,18 @@ describe Fedex do
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_one_package_ground.xml')).should be_true    
   end
-
+  
+  it "should not require weight to be passed in, but calculated weight must be larger than 0" do
+    lambda do
+      @fedex.price({
+        :shipper => shipper_address,
+        :recipient => recipient_address,
+        :service_type => 'FEDEX_GROUND',
+        :packages => []      
+      })
+    end.should raise_error Fedex::MissingInformationError
+  end
+  
   it "should pass along package dimensions properly if provided" do
     @fedex.linear_units = Fedex::RateConstants::LinearUnits::CM
     @fedex.price({
@@ -61,7 +72,7 @@ describe Fedex do
         :recipient => recipient_address,
         :weight => 4.3125
       })
-    # rescue Fedex::FedexError
+    # rescue Fedex::FedexError      
     end
   
     price.class.name.should == 'Hash'

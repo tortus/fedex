@@ -92,6 +92,10 @@
               <n1:Currency>USD</n1:Currency>
               <n1:Amount>100</n1:Amount>
             </n1:UnitPrice>
+            <n1:CustomsValue>
+              <n1:Currency>USD</n1:Currency>
+              <n1:Amount>100</n1:Amount>
+            </n1:CustomsValue>
           </n1:Commodities>
         </n1:InternationalDetail>
         <n1:LabelSpecification>

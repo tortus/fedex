@@ -164,7 +164,7 @@ module Fedex #:nodoc:
     #  }
     def price(options = {})
       @kind = :price
-      set_international_option_defaults(options)  if international_shipment?(options)  
+      international_shipment?(options) ? set_international_option_defaults(options) : set_defaults_for_packages(options)
       first_package = check_shipping_options(options)
   
       # Build shipment details for rate request
@@ -228,7 +228,7 @@ module Fedex #:nodoc:
     def label(options = {})
       @kind = :label
       single_package = options[:packages].nil? || options[:packages].length == 1
-      set_international_option_defaults(options)  if international_shipment?(options)
+      international_shipment?(options) ? set_international_option_defaults(options) : set_defaults_for_packages(options)
       first_package = check_shipping_options(options)
 
       # Build shipment options
@@ -654,7 +654,7 @@ module Fedex #:nodoc:
             :Currency => @currency,
             :Amount => commodity[:unit_price]
           },
-          :CustomsValues => {
+          :CustomsValue => {
             :Currency => @currency,
             :Amount => commodity[:customs_value],
           },
@@ -690,7 +690,7 @@ module Fedex #:nodoc:
       @intl[:edt_request_type]            = options[:dont_estimate_tax_and_duties] ?            ShipConstants::EdtRequestTypes::NONE : ShipConstants::EdtRequestTypes::ALL
      
       # Checking commodities + calculating total customs value
-      total_weight, total_value = set_defaults_for_packages( options[:packages] || options )      
+      total_weight, total_value = set_defaults_for_packages( options )      
       
       @intl[:total_customs_value]	        = options[:total_customs_value]                   || total_value
       unless @intl[:total_customs_value] == total_value
@@ -698,16 +698,21 @@ module Fedex #:nodoc:
       end
     end
 
-    def set_defaults_for_packages(packages)
+    def set_defaults_for_packages(options)
+      packages = options[:packages] && !options[:packages].empty? ? options[:packages] : options
       packages ||= []
       packages = [packages] unless packages.is_a?(Array)
       
       total_weight = 0; total_value = 0
       packages.each do |package| 
-        pkg_weight, pkg_value = set_defaults_for_commodities(package)
+        pkg_weight, pkg_value = set_defaults_for_commodities(package, international_shipment?(options))
         package[:weight] ||= pkg_weight
         unless pkg_weight == package[:weight] || (package[:weight] && pkg_weight.zero?)
           raise CalculationMismatchError.new("Provided package weight (#{package[:weight]}) is not equal to sum of commodity weights (#{pkg_weight})")
+        end
+
+        unless package[:weight] > 0
+          raise MissingInformationError.new("Package weight must be larger than 0 for #{package.inspect}")
         end
         
         total_weight += pkg_weight
@@ -716,8 +721,8 @@ module Fedex #:nodoc:
       [total_weight, total_value]
     end
 
-    def set_defaults_for_commodities(package)
-      raise MissingInformationError.new("No :commodities provided for package in international shipment") unless package[:commodities] || :price == @kind
+    def set_defaults_for_commodities(package, international)
+      raise MissingInformationError.new("No :commodities provided for package in international shipment") unless package[:commodities] || :price == @kind || !international
       pkg_weight = 0; pkg_value = 0
       (package[:commodities] || []).each do |commodity|
         check_required_options(:commodity, commodity) if :ship == @kind
