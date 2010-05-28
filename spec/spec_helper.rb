@@ -6,6 +6,7 @@ rescue LoadError
   require 'spec'
 end
 
+require 'rubygems'
 require 'active_support'
 
 require 'soap/wsdlDriver'

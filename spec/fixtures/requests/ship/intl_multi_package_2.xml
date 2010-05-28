@@ -96,6 +96,7 @@
           <n1:LabelStockType>PAPER_8.5X11_TOP_HALF_LABEL</n1:LabelStockType>
         </n1:LabelSpecification>
         <n1:RateRequestTypes>LIST</n1:RateRequestTypes>
+        <n1:EdtRequestType>ALL</n1:EdtRequestType>
         <n1:MasterTrackingId>
           <n1:TrackingNumber>794802593925</n1:TrackingNumber>
         </n1:MasterTrackingId>

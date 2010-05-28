@@ -522,7 +522,8 @@ module Fedex #:nodoc:
           :TotalWeight => multi_options[:first_package] ? { :Units => @weight_units, :Value => total_weight } : nil,
           :PreferredCurrency => @currency,
           :RequestedPackageLineItems => package_line_items(service, options[:packages], package, multi_options),
-          :InternationalDetail => international_shipment?(options) ? international_shipping_options( package ) : nil
+          :InternationalDetail => international_shipment?(options) ? international_shipping_options( package ) : nil,
+          :EdtRequestType => international_shipment?(options) ? @intl[:edt_request_type] : nil
         }
       )
       
@@ -654,17 +655,18 @@ module Fedex #:nodoc:
           :ExportLicenseNumber => commodity[:export_license_number],
           :ExportLicenseExpirationDate => commodity[:export_license_expiration_date]
         }
+        
+        (commodity[:excise_conditions] || []).each do |ec|
+          line_item[:ExciseConditions] ||= []
+          line_item[:ExciseConditions] << {
+            :Category => ec[:category],
+            :Value => ec[:value]
+          }
+        end
+
+        line_item
       end
       
-      (commodity[:excise_conditions] || []).each do |ec|
-        line_item[:ExciseConditions] ||= []
-        line_item[:ExciseConditions] << {
-          :Category => ec[:category],
-          :Value => ec[:value]
-        }
-      end
-      
-      line_item
     end
 
     def set_international_option_defaults(options)
@@ -679,7 +681,8 @@ module Fedex #:nodoc:
       @intl[:duties_payment_type]         = options[:duties_payment_type]                   ||  @payment_type
       @intl[:duties_payor_acct]           = options[:duties_payor_acct]                     ||  @account_number
       @intl[:duties_payor_country]        = options[:duties_payor_country]                  ||  options[:shipper][:address][:country]      
-      
+      @intl[:edt_request_type]            = options[:dont_estimate_tax_and_duties] ?            ShipConstants::EdtRequestTypes::NONE : ShipConstants::EdtRequestTypes::ALL
+     
       # Checking commodities + calculating total customs value
       total_weight, total_value = set_defaults_for_packages( options[:packages] || options )      
       
