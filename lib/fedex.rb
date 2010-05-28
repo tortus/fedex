@@ -692,9 +692,10 @@ module Fedex #:nodoc:
       # Checking commodities + calculating total customs value
       total_weight, total_value = set_defaults_for_packages( options )      
       
-      @intl[:total_customs_value]	        = options[:total_customs_value]                   || total_value
-      unless @intl[:total_customs_value] == total_value
-        raise CalculationMismatchError.new("Provided total_customs_value #{@intl[:total_customs_value]} doesn't equal calculated value #{calculated_custom_total}")
+      customs_value = total_value + @intl[:freight_charge] + @intl[:insurance_charge] # + Add "miscellaneous" charges, if any. Docs don't specify where to get these...
+      @intl[:total_customs_value]	        = options[:total_customs_value]                   || customs_value
+      unless @intl[:total_customs_value] == customs_value
+        raise CalculationMismatchError.new("Provided total_customs_value #{@intl[:total_customs_value]} doesn't equal calculated value #{customs_value}")
       end
     end
 

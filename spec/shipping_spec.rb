@@ -98,8 +98,7 @@ describe Fedex do
         :service_type => 'INTERNATIONAL_ECONOMY',
         :commodities => [ commodity('Commodity A', 4.3125, 100.00) ]
       })
-    rescue Fedex::FedexError, Exception => e
-      debugger; a=1
+    rescue Fedex::FedexError
     end
   
     get_requests
