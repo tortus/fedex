@@ -32,7 +32,7 @@ module Fedex #:nodoc:
       :base                    => [ :auth_key, :security_code, :account_number, :meter_number ],
       :price                   => [ :shipper, :recipient ],
       :label                   => [ :shipper, :recipient, :service_type ],
-      :package                 => [ :weight ],
+      :package                 => [ ],
       :international_package   => [ :commodities ],
       :contact                 => [ :name, :phone_number ],
       :address                 => [ :country, :street, :city, :state, :zip ],
@@ -302,7 +302,11 @@ module Fedex #:nodoc:
       
       check_type = international_shipment?(options) && :label == @kind ? :international_package : :package
       first_package = if options[:packages]
-        options[:packages].each{|p| check_required_options(check_type, p) }
+        options[:packages].each do |p|
+          p[:weight] ||= (p[:commodities] || []).sum{|c| c[:weight]}
+          check_required_options(check_type, p)
+        end
+        
         options[:packages].first
       else # Check old-style inline API
         check_required_options(check_type, options)
