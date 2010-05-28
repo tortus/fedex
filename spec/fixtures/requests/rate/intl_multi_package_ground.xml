@@ -26,7 +26,7 @@
         <n1:PackagingType>YOUR_PACKAGING</n1:PackagingType>
         <n1:TotalWeight>
           <n1:Units>LB</n1:Units>
-          <n1:Value>115.3125</n1:Value>
+          <n1:Value>118.625</n1:Value>
         </n1:TotalWeight>
         <n1:Shipper>
           <n1:Contact>
@@ -58,7 +58,7 @@
         <n1:ShippingChargesPayment>
           <n1:PaymentType>SENDER</n1:PaymentType>
           <n1:Payor>
-            <n1:AccountNumber>211669799</n1:AccountNumber>
+            <n1:AccountNumber></n1:AccountNumber>
             <n1:CountryCode>US</n1:CountryCode>
           </n1:Payor>
         </n1:ShippingChargesPayment>
@@ -66,7 +66,7 @@
           <n1:DutiesPayment>
             <n1:PaymentType>SENDER</n1:PaymentType>
             <n1:Payor>
-              <n1:AccountNumber>211669799</n1:AccountNumber>
+              <n1:AccountNumber></n1:AccountNumber>
               <n1:CountryCode>US</n1:CountryCode>
             </n1:Payor>
           </n1:DutiesPayment>
@@ -83,24 +83,7 @@
             <n1:HarmonizedCode>060110</n1:HarmonizedCode>
             <n1:Weight>
               <n1:Units>LB</n1:Units>
-              <n1:Value>4.3123</n1:Value>
-            </n1:Weight>
-            <n1:Quantity>1</n1:Quantity>
-            <n1:QuantityUnits>EA</n1:QuantityUnits>
-            <n1:UnitPrice>
-              <n1:Currency>USD</n1:Currency>
-              <n1:Amount>100</n1:Amount>
-            </n1:UnitPrice>
-          </n1:Commodities>
-          <n1:Commodities>
-            <n1:Name>Commodity A</n1:Name>
-            <n1:NumberOfPieces>1</n1:NumberOfPieces>
-            <n1:Description>Description of Commodity A</n1:Description>
-            <n1:CountryOfManufacture>US</n1:CountryOfManufacture>
-            <n1:HarmonizedCode>060110</n1:HarmonizedCode>
-            <n1:Weight>
-              <n1:Units>LB</n1:Units>
-              <n1:Value>4.3123</n1:Value>
+              <n1:Value>4.3125</n1:Value>
             </n1:Weight>
             <n1:Quantity>1</n1:Quantity>
             <n1:QuantityUnits>EA</n1:QuantityUnits>
@@ -131,7 +114,7 @@
           <n1:SequenceNumber>1</n1:SequenceNumber>
           <n1:Weight>
             <n1:Units>LB</n1:Units>
-            <n1:Value>1</n1:Value>
+            <n1:Value>4.3125</n1:Value>
           </n1:Weight>
           <n1:SpecialServicesRequested>
           </n1:SpecialServicesRequested>

@@ -16,7 +16,11 @@ require 'rate_constants'
 require 'ship_constants'
 require 'fedex'
 
-require 'ruby-debug'
+begin
+  require 'ruby-debug'
+rescue
+  # If they don't all pass, this becomes useful, but it's not required per se
+end
 
 def ship_fixture_file(dirname, filename)
   File.read(File.dirname(__FILE__) + "/fixtures/#{dirname}/ship/#{filename}")
@@ -42,21 +46,24 @@ def xml_same?(str_a, str_b)
   sta = clean_xml(str_a.to_s)
   stb = clean_xml(str_b.to_s)
 
-  # # Used to help debug problems
-  # aa = sta.split(/\n/)
-  # bb = stb.split(/\n/)
-  # df1 = aa.select{|l| bb[aa.index(l)] != l}
-  # df2 = bb.select{|l| aa[bb.index(l)] != l}
-  # unless df1.empty? && df2.empty?
-  #   aa.length.times do |i|
-  #     if aa[i] == bb[i]
-  #       puts "#{i}: same"
-  #     else
-  #       puts "---\nEXPECTED: #{bb[i]}\nGOT: #{aa[i]}\n---"
-  #     end
-  #   end
-  #   debugger 
-  # end  
+  # Used to help debug problems
+  aa = sta.split(/\n/)
+  bb = stb.split(/\n/)
+  df1 = aa.select{|l| bb[aa.index(l)] != l}
+  df2 = bb.select{|l| aa[bb.index(l)] != l}
+  unless df1.empty? && df2.empty?
+    aa.length.times do |i|
+      if aa[i] == bb[i]
+        puts "#{i}: same"
+      else
+        puts "---"
+        puts "#{i}: EXPECTED: #{bb[i]}"
+        puts "#{i}: BUT GOT : #{aa[i]}"
+        puts "---"
+      end
+    end
+    debugger 
+  end  
 
   sta == stb
 end

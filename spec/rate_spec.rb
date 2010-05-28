@@ -5,7 +5,7 @@ describe Fedex do
   
   before do
     @dump = ''
-    @fedex = Fedex::Base.new( auth.merge(:debug => true, :wiredump => @dump, :environment => :production) )
+    @fedex = Fedex::Base.new( auth.merge(:debug => true, :wiredump => @dump) )
   end
   
   it "should generate XML correctly for single domestic package with inline (old-style) API and specified rate type" do
@@ -16,15 +16,15 @@ describe Fedex do
         :weight => 4.3125,
         :service_type => 'FEDEX_GROUND'
       })
-    rescue Fedex::FedexError
+    # rescue Fedex::FedexError
     end
-  
+
     price.class.name.should == 'Fixnum'
     price.should > 500
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_one_package_ground.xml')).should be_true    
   end
-  
+
   it "should generate XML correctly for single domestic package with specified rate type" do
     begin
       price = @fedex.price({
@@ -33,15 +33,15 @@ describe Fedex do
         :service_type => 'FEDEX_GROUND',
         :packages => [{:weight => 4.3125}]
       })
-    rescue Fedex::FedexError
+    # rescue Fedex::FedexError
     end
-  
+
     price.class.name.should == 'Fixnum'
     price.should > 500
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_one_package_ground.xml')).should be_true    
   end
-  
+
   it "should generate XML correctly for single domestic package with inline (old-style) API searching all available rates" do
     begin
       price = @fedex.price({
@@ -49,15 +49,15 @@ describe Fedex do
         :recipient => recipient_address,
         :weight => 4.3125
       })
-    rescue Fedex::FedexError
+    # rescue Fedex::FedexError
     end
-    
+  
     price.class.name.should == 'Hash'
     price['FEDEX_GROUND'].should > 500
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_one_package_all.xml')).should be_true
   end
-  
+
   it "should generate XML correctly for multie-package domestic shipment with specified rate type" do
     begin
       price = @fedex.price({
@@ -71,15 +71,15 @@ describe Fedex do
           { :weight => 100 },
         ]
       })
-    rescue Fedex::FedexError
+    # rescue Fedex::FedexError
     end
-  
+
     price.class.name.should == 'Fixnum'
     price.should > 6000 # Bunch of packages, should be more expensive
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_multi_package_ground.xml')).should be_true
   end
-  
+
   it "should not error if trying to create international rate request without commodities" do
     lambda {
       @fedex.price({
@@ -101,23 +101,23 @@ describe Fedex do
       })
     rescue Fedex::FedexError
     end
-  
+
     price.class.name.should == 'Fixnum'
     price.should > 1000 # intl shipment should be more expensive
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'intl_one_package_ground_no_commodity.xml')).should be_true
   end
-
   
+    
   it "should generate XML correctly for single international package with specified rate type" do
     begin
       price = @fedex.price({
         :shipper => shipper_address,
         :recipient => intl_recipient_address,
         :service_type => 'FEDEX_GROUND',
-        :packages => [{:weight => 4.3125, :commodities => [commodity('Commodity A', 4.3123, 100.00)]}]
+        :packages => [{:weight => 4.3125, :commodities => [commodity('Commodity A', 4.3125, 100.00)]}]
       })
-    rescue Fedex::FedexError
+    # rescue Fedex::FedexError
     end
   
     price.class.name.should == 'Fixnum'
@@ -131,9 +131,9 @@ describe Fedex do
       price = @fedex.price({
         :shipper => shipper_address,
         :recipient => intl_recipient_address,
-        :packages => [{:weight => 4.3125, :commodities => [commodity('Commodity A', 4.3123, 100.00)]}]
+        :packages => [{:weight => 4.3125, :commodities => [commodity('Commodity A', 4.3125, 100.00)]}]
       })
-    rescue Fedex::FedexError
+    # rescue Fedex::FedexError
     end
     
     price.class.name.should == 'Hash'
@@ -150,13 +150,13 @@ describe Fedex do
         :recipient => intl_recipient_address,
         :service_type => 'FEDEX_GROUND',
         :packages => [
-          { :weight => 4.3125,:commodities => [commodity('Commodity A', 4.3123, 100.00)] },
-          { :weight => 1, :commodities => [commodity('Commodity A', 4.3123, 100.00)] },
+          { :weight => 4.3125,:commodities => [commodity('Commodity A', 4.3125, 100.00)] },
+          { :commodities => [commodity('Commodity A', 4.3125, 100.00)] },
           { :weight => 10 },
           { :weight => 100 },
         ]
       })
-    rescue Fedex::FedexError
+    # rescue Fedex::FedexError
     end
   
     price.class.name.should == 'Fixnum'
@@ -164,5 +164,5 @@ describe Fedex do
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'intl_multi_package_ground.xml')).should be_true
   end
-   
+       
 end

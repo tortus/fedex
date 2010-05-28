@@ -58,7 +58,7 @@
         <n1:ShippingChargesPayment>
           <n1:PaymentType>SENDER</n1:PaymentType>
           <n1:Payor>
-            <n1:AccountNumber>211669799</n1:AccountNumber>
+            <n1:AccountNumber></n1:AccountNumber>
             <n1:CountryCode>US</n1:CountryCode>
           </n1:Payor>
         </n1:ShippingChargesPayment>
@@ -66,7 +66,7 @@
           <n1:DutiesPayment>
             <n1:PaymentType>SENDER</n1:PaymentType>
             <n1:Payor>
-              <n1:AccountNumber>211669799</n1:AccountNumber>
+              <n1:AccountNumber></n1:AccountNumber>
               <n1:CountryCode>US</n1:CountryCode>
             </n1:Payor>
           </n1:DutiesPayment>
@@ -83,7 +83,7 @@
             <n1:HarmonizedCode>060110</n1:HarmonizedCode>
             <n1:Weight>
               <n1:Units>LB</n1:Units>
-              <n1:Value>4.3123</n1:Value>
+              <n1:Value>4.3125</n1:Value>
             </n1:Weight>
             <n1:Quantity>1</n1:Quantity>
             <n1:QuantityUnits>EA</n1:QuantityUnits>

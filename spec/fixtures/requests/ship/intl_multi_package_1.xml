@@ -59,7 +59,7 @@
         <n1:ShippingChargesPayment>
           <n1:PaymentType>SENDER</n1:PaymentType>
           <n1:Payor>
-            <n1:AccountNumber>510087607</n1:AccountNumber>
+            <n1:AccountNumber></n1:AccountNumber>
             <n1:CountryCode>US</n1:CountryCode>
           </n1:Payor>
         </n1:ShippingChargesPayment>
@@ -67,7 +67,7 @@
           <n1:DutiesPayment>
             <n1:PaymentType>SENDER</n1:PaymentType>
             <n1:Payor>
-              <n1:AccountNumber>510087607</n1:AccountNumber>
+              <n1:AccountNumber></n1:AccountNumber>
               <n1:CountryCode>US</n1:CountryCode>
             </n1:Payor>
           </n1:DutiesPayment>
@@ -84,7 +84,7 @@
             <n1:HarmonizedCode>060110</n1:HarmonizedCode>
             <n1:Weight>
               <n1:Units>LB</n1:Units>
-              <n1:Value>3.3123</n1:Value>
+              <n1:Value>3.3125</n1:Value>
             </n1:Weight>
             <n1:Quantity>1</n1:Quantity>
             <n1:QuantityUnits>EA</n1:QuantityUnits>
@@ -108,23 +108,6 @@
             <n1:UnitPrice>
               <n1:Currency>USD</n1:Currency>
               <n1:Amount>50</n1:Amount>
-            </n1:UnitPrice>
-          </n1:Commodities>
-          <n1:Commodities>
-            <n1:Name>PKG2 - Commodity A</n1:Name>
-            <n1:NumberOfPieces>1</n1:NumberOfPieces>
-            <n1:Description>Description of PKG2 - Commodity A</n1:Description>
-            <n1:CountryOfManufacture>US</n1:CountryOfManufacture>
-            <n1:HarmonizedCode>060110</n1:HarmonizedCode>
-            <n1:Weight>
-              <n1:Units>LB</n1:Units>
-              <n1:Value>1</n1:Value>
-            </n1:Weight>
-            <n1:Quantity>1</n1:Quantity>
-            <n1:QuantityUnits>EA</n1:QuantityUnits>
-            <n1:UnitPrice>
-              <n1:Currency>USD</n1:Currency>
-              <n1:Amount>100</n1:Amount>
             </n1:UnitPrice>
           </n1:Commodities>
         </n1:InternationalDetail>

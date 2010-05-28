@@ -58,7 +58,7 @@
         <n1:ShippingChargesPayment>
           <n1:PaymentType>SENDER</n1:PaymentType>
           <n1:Payor>
-            <n1:AccountNumber>211669799</n1:AccountNumber>
+            <n1:AccountNumber></n1:AccountNumber>
             <n1:CountryCode>US</n1:CountryCode>
           </n1:Payor>
         </n1:ShippingChargesPayment>

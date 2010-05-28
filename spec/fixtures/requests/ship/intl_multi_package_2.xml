@@ -24,10 +24,6 @@
         <n1:DropoffType>REGULAR_PICKUP</n1:DropoffType>
         <n1:ServiceType>INTERNATIONAL_ECONOMY</n1:ServiceType>
         <n1:PackagingType>YOUR_PACKAGING</n1:PackagingType>
-        <n1:TotalWeight>
-          <n1:Units>LB</n1:Units>
-          <n1:Value>5.3125</n1:Value>
-        </n1:TotalWeight>
         <n1:PreferredCurrency>USD</n1:PreferredCurrency>
         <n1:Shipper>
           <n1:Contact>
@@ -59,7 +55,7 @@
         <n1:ShippingChargesPayment>
           <n1:PaymentType>SENDER</n1:PaymentType>
           <n1:Payor>
-            <n1:AccountNumber>510087607</n1:AccountNumber>
+            <n1:AccountNumber></n1:AccountNumber>
             <n1:CountryCode>US</n1:CountryCode>
           </n1:Payor>
         </n1:ShippingChargesPayment>
@@ -67,7 +63,7 @@
           <n1:DutiesPayment>
             <n1:PaymentType>SENDER</n1:PaymentType>
             <n1:Payor>
-              <n1:AccountNumber>510087607</n1:AccountNumber>
+              <n1:AccountNumber></n1:AccountNumber>
               <n1:CountryCode>US</n1:CountryCode>
             </n1:Payor>
           </n1:DutiesPayment>
@@ -76,40 +72,6 @@
             <n1:Currency>USD</n1:Currency>
             <n1:Amount>300</n1:Amount>
           </n1:CustomsValue>
-          <n1:Commodities>
-            <n1:Name>PKG1 - Commodity A</n1:Name>
-            <n1:NumberOfPieces>1</n1:NumberOfPieces>
-            <n1:Description>Description of PKG1 - Commodity A</n1:Description>
-            <n1:CountryOfManufacture>US</n1:CountryOfManufacture>
-            <n1:HarmonizedCode>060110</n1:HarmonizedCode>
-            <n1:Weight>
-              <n1:Units>LB</n1:Units>
-              <n1:Value>3.3123</n1:Value>
-            </n1:Weight>
-            <n1:Quantity>1</n1:Quantity>
-            <n1:QuantityUnits>EA</n1:QuantityUnits>
-            <n1:UnitPrice>
-              <n1:Currency>USD</n1:Currency>
-              <n1:Amount>100</n1:Amount>
-            </n1:UnitPrice>
-          </n1:Commodities>
-          <n1:Commodities>
-            <n1:Name>PKG1 - Commodity B</n1:Name>
-            <n1:NumberOfPieces>1</n1:NumberOfPieces>
-            <n1:Description>Description of PKG1 - Commodity B</n1:Description>
-            <n1:CountryOfManufacture>US</n1:CountryOfManufacture>
-            <n1:HarmonizedCode>060110</n1:HarmonizedCode>
-            <n1:Weight>
-              <n1:Units>LB</n1:Units>
-              <n1:Value>1</n1:Value>
-            </n1:Weight>
-            <n1:Quantity>2</n1:Quantity>
-            <n1:QuantityUnits>EA</n1:QuantityUnits>
-            <n1:UnitPrice>
-              <n1:Currency>USD</n1:Currency>
-              <n1:Amount>50</n1:Amount>
-            </n1:UnitPrice>
-          </n1:Commodities>
           <n1:Commodities>
             <n1:Name>PKG2 - Commodity A</n1:Name>
             <n1:NumberOfPieces>1</n1:NumberOfPieces>
@@ -135,7 +97,7 @@
         </n1:LabelSpecification>
         <n1:RateRequestTypes>LIST</n1:RateRequestTypes>
         <n1:MasterTrackingId>
-          <n1:TrackingNumber>794802563359</n1:TrackingNumber>
+          <n1:TrackingNumber>794802593925</n1:TrackingNumber>
         </n1:MasterTrackingId>
         <n1:PackageCount>2</n1:PackageCount>
         <n1:PackageDetail>INDIVIDUAL_PACKAGES</n1:PackageDetail>
