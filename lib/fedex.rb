@@ -183,25 +183,7 @@ module Fedex #:nodoc:
       
       raise "Couldn't find Fedex price in response!"
     end
-
-    # Process the rate request 
-    def process_rate_request( rate_request_details )
-      driver = create_driver(:rate)
-      result = driver.getRates(rate_request_details)
-      
-      msg = error_msg(result, false)
-      if successful?(result) && msg !~ /There are no valid services available/
-        reply_details = result.rateReplyDetails
-        if reply_details.respond_to?(:ratedShipmentDetails)
-          amount = extract_price_from_rate_request(reply_details)
-          @service_type ? amount : { reply_details.serviceType => amount }
-        else
-          reply_details.inject({}) {|h,r| h[r.serviceType] = extract_price_from_rate_request(r); h }
-        end
-      else
-        raise FedexError.new("Unable to retrieve price from Fedex: #{msg}")
-      end
-    end
+    alias :find_rates :price
 
     # Generate a new shipment and return associated data, including price, tracking number, and the label itself.
     #
@@ -272,6 +254,34 @@ module Fedex #:nodoc:
         [summed_charges, labels, master_tracking_number]
       end
     end
+    alias :create_shipment :label
+
+    # Cancel a shipment
+    #
+    #  fedex = Fedex::Base.new(options)
+    #  result = fedex.cancel(options)
+    #
+    # Returns a boolean indicating whether or not the operation was successful
+    #
+    # === Required options for cancel
+    #   :tracking_number - The Fedex-provided tracking number you wish to cancel
+    def cancel(options = {})
+      check_required_options(:ship_cancel, options)
+
+      tracking_number = options[:tracking_number]
+      #carrier_code    = options[:carrier_code] || carrier_code_for_tracking_number(tracking_number)
+
+      driver = create_driver(:ship)
+
+      result = driver.deleteShipment(common_options(:ship).merge(
+        :TrackingNumber => tracking_number
+      ))
+
+      return successful?(result)
+    end
+    alias :cancel_shipment :cancel
+
+    private
 
 
     def check_shipping_options(options)
@@ -328,33 +338,25 @@ module Fedex #:nodoc:
       end
     end
     
-
-    # Cancel a shipment
-    #
-    #  fedex = Fedex::Base.new(options)
-    #  result = fedex.cancel(options)
-    #
-    # Returns a boolean indicating whether or not the operation was successful
-    #
-    # === Required options for cancel
-    #   :tracking_number - The Fedex-provided tracking number you wish to cancel
-    def cancel(options = {})
-      check_required_options(:ship_cancel, options)
-
-      tracking_number = options[:tracking_number]
-      #carrier_code    = options[:carrier_code] || carrier_code_for_tracking_number(tracking_number)
-
-      driver = create_driver(:ship)
-
-      result = driver.deleteShipment(common_options(:ship).merge(
-        :TrackingNumber => tracking_number
-      ))
-
-      return successful?(result)
+    # Process the rate request 
+    def process_rate_request( rate_request_details )
+      driver = create_driver(:rate)
+      result = driver.getRates(rate_request_details)
+      
+      msg = error_msg(result, false)
+      if successful?(result) && msg !~ /There are no valid services available/
+        reply_details = result.rateReplyDetails
+        if reply_details.respond_to?(:ratedShipmentDetails)
+          amount = extract_price_from_rate_request(reply_details)
+          @service_type ? amount : { reply_details.serviceType => amount }
+        else
+          reply_details.inject({}) {|h,r| h[r.serviceType] = extract_price_from_rate_request(r); h }
+        end
+      else
+        raise FedexError.new("Unable to retrieve price from Fedex: #{msg}")
+      end
     end
-
-    private
-
+    
     # Options that go along with each request
     # service - :crs or :ship
     def common_options(service)
