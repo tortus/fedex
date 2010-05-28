@@ -655,6 +655,16 @@ module Fedex #:nodoc:
           :ExportLicenseExpirationDate => commodity[:export_license_expiration_date]
         }
       end
+      
+      (commodity[:excise_conditions] || []).each do |ec|
+        line_item[:ExciseConditions] ||= []
+        line_item[:ExciseConditions] << {
+          :Category => ec[:category],
+          :Value => ec[:value]
+        }
+      end
+      
+      line_item
     end
 
     def set_international_option_defaults(options)
