@@ -723,7 +723,7 @@ module Fedex #:nodoc:
         if commodity[:customs_value].zero?
           raise MissingInformationError.new("Customs value must be larger than 0 for each commodity to be shipped. Did you provide a 0 unit_price?")
         end
-        pkg_weight += commodity[:weight] # TODO - should this be commodity weight * commodity quantity, or is this total weight?
+        pkg_weight += commodity[:weight]
         pkg_value += commodity[:customs_value]
       end
       [pkg_weight, pkg_value]

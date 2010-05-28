@@ -1,3 +1,13 @@
+def auth
+  raise "To run specs against Fedex servers, add your own authentication keys to the 'auth' method in spec_helper.rb"
+  # {
+  #   :auth_key       => 'KEY',
+  #   :security_code  => 'PASSWORD',
+  #   :account_number => 'ACCOUNT',
+  #   :meter_number   => 'METER'
+  # }
+end
+
 begin
   require 'spec'
 rescue LoadError
