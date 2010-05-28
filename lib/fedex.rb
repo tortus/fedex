@@ -59,7 +59,8 @@ module Fedex #:nodoc:
                   :meter_number,
                   :dropoff_type,
                   :service_type,
-                  :units,
+                  :weight_units,
+                  :linear_units,
                   :packaging_type,
                   :sender,
                   :debug,
@@ -91,7 +92,8 @@ module Fedex #:nodoc:
     #   :label_stock_type   - One of Fedex::ShipConstants::LabelStockTypes.  Defaults to LabelStockTypes::PAPER_85X11_TOP_HALF_LABEL.
     #   :rate_request_type  - One of Fedex::ShipConstants::RateRequestTypes.  Defaults to RateRequestTypes::ACCOUNT
     #   :payment            - One of Fedex::ShipConstants::PaymentTypes.  Defaults to PaymentTypes::SENDER
-    #   :units              - One of Fedex::ShipConstants::WeightUnits.  Defaults to WeightUnits::LB
+    #   :weight_units       - One of Fedex::ShipConstants::WeightUnits.  Defaults to WeightUnits::LB
+    #   :linear_units       - One of Fedex::ShipConstants::LinearUnits.  Defaults to LinearUnits::IN
     #   :currency           - Defaults to 'USD'
     #   :debug              - Enable or disable debug (wiredump) output.  Defaults to false.
     #   :environment        - Connect to production or development FedEx servers. Defaults to production if RAILS_ENV == production, 
@@ -111,7 +113,8 @@ module Fedex #:nodoc:
       @label_stock_type   = options[:label_stock_type]  || Fedex::ShipConstants::LabelStockTypes::PAPER_85X11_TOP_HALF_LABEL
       @rate_request_type  = options[:rate_request_type] || Fedex::ShipConstants::RateRequestTypes::LIST
       @payment_type       = options[:payment]           || Fedex::ShipConstants::PaymentTypes::SENDER
-      @units              = options[:units]             || Fedex::ShipConstants::WeightUnits::LB
+      @weight_units       = options[:weight_units]      || Fedex::ShipConstants::WeightUnits::LB
+      @linear_units       = options[:linear_units]      || Fedex::ShipConstants::LinearUnits::IN
       @currency           = options[:currency]          || 'USD'
       @debug              = options[:debug]             || false
       @wiredump           = options[:wiredump]          || STDOUT
@@ -516,7 +519,7 @@ module Fedex #:nodoc:
           :PackagingType => @packaging_type,
           :PackageDetail => Fedex::ShipConstants::RequestedPackageDetailTypes::INDIVIDUAL_PACKAGES,
           :PackageDetailSpecified => true,
-          :TotalWeight => multi_options[:first_package] ? { :Units => @units, :Value => total_weight } : nil,
+          :TotalWeight => multi_options[:first_package] ? { :Units => @weight_units, :Value => total_weight } : nil,
           :PreferredCurrency => @currency,
           :RequestedPackageLineItems => package_line_items(service, options[:packages], package, multi_options),
           :InternationalDetail => international_shipment?(options) ? international_shipping_options( package ) : nil
@@ -540,13 +543,22 @@ module Fedex #:nodoc:
       line_item = {
         :SequenceNumber => more[:sequence] || 1,
         :Weight => {
-          :Units => @units,
+          :Units => @weight_units,
           :Value => package[:weight]
         },
         :SpecialServicesRequested => {
           :SpecialServiceTypes => []
         }
       }
+      
+      if package[:length] && package[:height] && package[:width]
+        line_item[:Dimensions] = {
+          :Length => package[:length],
+          :Height => package[:height],
+          :Width => package[:width],
+          :Units => @linear_units
+        }
+      end
 
       if package[:dry_ice]
         dry_ice_type = package[:dry_ice_type] || Fedex::ShipConstants::PackageSpecialServiceTypes::DRY_ICE
@@ -554,7 +566,7 @@ module Fedex #:nodoc:
 
         line_item[:SpecialServicesRequested].merge!(
           :DryIceWeight => {
-            :Units => package[:dry_ice_weight_units] || Fedex::ShipConstants::WeightUnits::KG,
+            :Units => package[:dry_ice_weight_units] || Fedex::ShipConstants::WeightUnits::LB,
             :Value => package[:dry_ice_weight]
           }
         )
@@ -619,7 +631,7 @@ module Fedex #:nodoc:
       (package[:commodities] || []).collect do |commodity|
         check_required_options(:commodity, commodity)
         check_two_letter_country_code(:country_of_manufacture, commodity, commodity[:country_of_manufacture])
-        {
+        line_item = {
           :Name => commodity[:name],
           :Description => commodity[:description],
           :CountryOfManufacture => commodity[:country_of_manufacture],
@@ -627,7 +639,7 @@ module Fedex #:nodoc:
           :NumberOfPieces => commodity[:number_of_pieces],
           :QuantityUnits => commodity[:number_of_pieces_units],
           :Weight => {
-            :Units => @units,
+            :Units => @weight_units,
             :Value => commodity[:weight],
           },
           :Quantity => commodity[:quantity],

@@ -18,13 +18,13 @@ describe Fedex do
       })
     # rescue Fedex::FedexError
     end
-
+  
     price.class.name.should == 'Fixnum'
     price.should > 500
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_one_package_ground.xml')).should be_true    
   end
-
+  
   it "should generate XML correctly for single domestic package with specified rate type" do
     begin
       price = @fedex.price({
@@ -35,11 +35,24 @@ describe Fedex do
       })
     # rescue Fedex::FedexError
     end
-
+  
     price.class.name.should == 'Fixnum'
     price.should > 500
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_one_package_ground.xml')).should be_true    
+  end
+
+  it "should pass along package dimensions properly if provided" do
+    @fedex.linear_units = Fedex::RateConstants::LinearUnits::CM
+    @fedex.price({
+      :shipper => shipper_address,
+      :recipient => recipient_address,
+      :service_type => 'FEDEX_GROUND',
+      :packages => [{:weight => 12.3, :height => 13, :width => 14, :length => 15}]      
+    })
+    
+    get_requests
+    xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_one_package_all_with_dimensions.xml')).should be_true
   end
 
   it "should generate XML correctly for single domestic package with inline (old-style) API searching all available rates" do
@@ -57,7 +70,7 @@ describe Fedex do
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_one_package_all.xml')).should be_true
   end
-
+  
   it "should generate XML correctly for multie-package domestic shipment with specified rate type" do
     begin
       price = @fedex.price({
@@ -73,13 +86,13 @@ describe Fedex do
       })
     # rescue Fedex::FedexError
     end
-
+  
     price.class.name.should == 'Fixnum'
     price.should > 6000 # Bunch of packages, should be more expensive
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_multi_package_ground.xml')).should be_true
   end
-
+  
   it "should not error if trying to create international rate request without commodities" do
     lambda {
       @fedex.price({
@@ -90,7 +103,7 @@ describe Fedex do
       })
     }.should_not raise_error Fedex::MissingInformationError
   end
-
+  
   it "should generate XML correctly for single international package with old style API and specified rate type" do
     begin
       price = @fedex.price({
@@ -101,7 +114,7 @@ describe Fedex do
       })
     rescue Fedex::FedexError
     end
-
+  
     price.class.name.should == 'Fixnum'
     price.should > 1000 # intl shipment should be more expensive
     get_requests
@@ -164,5 +177,5 @@ describe Fedex do
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'intl_multi_package_ground.xml')).should be_true
   end
-       
+  
 end
