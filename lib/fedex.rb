@@ -42,12 +42,12 @@ module Fedex #:nodoc:
     
     # Defines the relative path to the WSDL files.  Defaults assume lib/wsdl under plugin directory.
     WSDL_PATHS = {
-      :rate => 'wsdl/RateService_v8.wsdl',
-      :ship => 'wsdl/ShipService_v8.wsdl',
+      :rate => 'wsdl/RateService_v9.wsdl',
+      :ship => 'wsdl/ShipService_v9.wsdl',
     }
     
     # Defines the Web Services version implemented.
-    WS_VERSION = { :Major => 8, :Intermediate => 0, :Minor => 0 }
+    WS_VERSION = { :Major => 9, :Intermediate => 0, :Minor => 0 }
     
     SUCCESSFUL_RESPONSES = ['SUCCESS', 'WARNING', 'NOTE'] #:nodoc:
     

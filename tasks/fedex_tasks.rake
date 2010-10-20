@@ -1,10 +1,10 @@
 desc 'Autogenerates the rate_constants and ship_constants files from the specified version of the API'
 task :generate_constants_file do
   path = ENV['WSDL_PATH'] || File.join(File.dirname(__FILE__), '..', 'lib', 'wsdl')
-  version = ENV['VERSION'] || 8
+  version = ENV['VERSION'] || 9
   first_line = {
-    :ship => ENV['SHIP_FIRST'] || '# {http://fedex.com/ws/ship/v8}AdditionalLabelsType',  # First class definition to keep in ShipServiceDefinitions.rb
-    :rate => ENV['RATE_FIRST'] || '# {http://fedex.com/ws/rate/v8}PickupRequestType'     # First class definition to keep in RateServiceDefinitions.rb
+    :ship => ENV['SHIP_FIRST'] || '# {http://fedex.com/ws/ship/v9}AdditionalLabelsType',  # First class definition to keep in ShipServiceDefinitions.rb
+    :rate => ENV['RATE_FIRST'] || '# {http://fedex.com/ws/rate/v9}PickupRequestType'     # First class definition to keep in RateServiceDefinitions.rb
   }    
   files = [File.join(path, "ShipService_v#{version}.wsdl"), File.join(path, "RateService_v#{version}.wsdl")]
   files.each { |file| raise "No WSDL file located at #{file}" unless File.exists?(file) }
