@@ -2,7 +2,7 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xmlns:env="http://schemas.xmlsoap.org/soap/envelope/">
   <env:Body>
-    <n1:ProcessShipmentRequest xmlns:n1="http://fedex.com/ws/ship/v8">
+    <n1:ProcessShipmentRequest xmlns:n1="http://fedex.com/ws/ship/v9">
       <n1:WebAuthenticationDetail>
         <n1:UserCredential>
           <n1:Key>KEY</n1:Key>
@@ -15,7 +15,7 @@
       </n1:ClientDetail>
       <n1:Version>
         <n1:ServiceId>ship</n1:ServiceId>
-        <n1:Major>8</n1:Major>
+        <n1:Major>9</n1:Major>
         <n1:Intermediate>0</n1:Intermediate>
         <n1:Minor>0</n1:Minor>
       </n1:Version>
@@ -28,7 +28,6 @@
           <n1:Units>LB</n1:Units>
           <n1:Value>4.3125</n1:Value>
         </n1:TotalWeight>
-        <n1:PreferredCurrency>USD</n1:PreferredCurrency>
         <n1:Shipper>
           <n1:Contact>
             <n1:PersonName>Shipper Name</n1:PersonName>
@@ -63,7 +62,7 @@
             <n1:CountryCode>US</n1:CountryCode>
           </n1:Payor>
         </n1:ShippingChargesPayment>
-        <n1:InternationalDetail>
+        <n1:CustomsClearanceDetail>
           <n1:DutiesPayment>
             <n1:PaymentType>SENDER</n1:PaymentType>
             <n1:Payor>
@@ -97,7 +96,7 @@
               <n1:Amount>100</n1:Amount>
             </n1:CustomsValue>
           </n1:Commodities>
-        </n1:InternationalDetail>
+        </n1:CustomsClearanceDetail>
         <n1:LabelSpecification>
           <n1:LabelFormatType>COMMON2D</n1:LabelFormatType>
           <n1:ImageType>PDF</n1:ImageType>

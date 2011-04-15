@@ -2,3 +2,5 @@
 .svn
 lib/wsdl
 auth_info.rb
+.rvmrc
+.idea

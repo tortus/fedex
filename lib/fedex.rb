@@ -281,7 +281,7 @@ module Fedex #:nodoc:
     end
     alias :cancel_shipment :cancel
 
-    private
+    # private
 
 
     def check_shipping_options(options)
@@ -465,10 +465,10 @@ module Fedex #:nodoc:
       recipient_address   = recipient[:address]
 
       count               = options[:packages] ? options[:packages].length : 1
-      total_weight        = options[:packages] ? options[:packages].sum{|p| p[:weight]} : options[:weight]
+      total_weight        = options[:packages] ? options[:packages].collect{|p| p[:weight]}.inject {|sum, n| sum + n } : options[:weight]
 
       time                = options[:time] || Time.now
-      time                = time.to_time.iso8601 if time.is_a?(Time)
+      time                = time.iso8601 if time.is_a?(Time)
 
       residential         = !!recipient_address[:residential]
 
@@ -528,13 +528,13 @@ module Fedex #:nodoc:
           :TotalWeight => multi_options[:first_package] ? { :Units => @weight_units, :Value => total_weight } : nil,
           :PreferredCurrency => @currency,
           :RequestedPackageLineItems => package_line_items(service, options[:packages], package, multi_options),
-          :InternationalDetail => international_shipment?(options) ? international_shipping_options( package ) : nil,
+          :CustomsClearanceDetail => international_shipment?(options) ? international_shipping_options( package ) : nil,
           :EdtRequestType => international_shipment?(options) ? @intl[:edt_request_type] : nil
         }
       )
       
       
-      return opts
+      opts
     end
     
     # If shipping, each package gets its own request. Rate requests bundle them all into one
@@ -607,15 +607,15 @@ module Fedex #:nodoc:
     def international_shipping_options(package)
       {
         :DocumentContent => @intl[:content_type],
-        :AdmissibilityPackageType => @intl[:admissibility_package_type],
+        # :AdmissibilityPackageType => @intl[:admissibility_package_type],      # not in v9
         :TermsOfSale => @intl[:terms_of_sale],
-        :RegulatoryControlType => @intl[:regulator_control_type],
-        :Purpose => @intl[:purpose],
+        :RegulatoryControls => @intl[:regulatory_controls],                     # TODO possible multiple values in v9
+        :Purpose => @intl[:purpose],                                            # TODO inside CommercialInvoice in v9
         :CustomsValue => {
           :Currency => @currency,
           :Amount => @intl[:total_customs_value]
         },
-        :FreightCharge => {
+        :FreightCharge => {                                                     # TODO inside CommercialInvoice in v9
           :Currency => @currency,
           :Amount => @intl[:freight_charge]
         },
@@ -682,7 +682,7 @@ module Fedex #:nodoc:
       @intl[:terms_of_sale]	              = options[:terms_of_sale]                         ||  Fedex::ShipConstants::TermsOfSaleTypes::FOB_OR_FCA # default, shipper pays
       @intl[:freight_charge]	            = options[:freight_charge]                        ||  0.00
       @intl[:insurance_charge]	          = options[:insurance_charge]                      ||  0.00
-      @intl[:regulatory_control_type]	    = options[:regulatory_control_type]               ||  nil
+      @intl[:regulatory_controls]	        = options[:regulatory_controls]                   ||  nil
       @intl[:purpose]	                    = options[:purpose]                               ||  Fedex::ShipConstants::PurposeOfShipmentTypes::SOLD      
       @intl[:duties_payment_type]         = options[:duties_payment_type]                   ||  @payment_type
       @intl[:duties_payor_acct]           = options[:duties_payor_acct]                     ||  @account_number

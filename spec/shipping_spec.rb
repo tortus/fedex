@@ -77,7 +77,7 @@ describe Fedex do
       end
     end.should raise_error
   end
-  
+    
   it "should detect incorrect package weights" do
     lambda do
       @fedex.label({
@@ -124,7 +124,7 @@ describe Fedex do
     get_requests
     xml_same?(@requests.first, ship_fixture_file(:requests, 'intl_one_package.xml')).should be_true     
   end
-  
+    
   it "should generate XML correctly for multiple international packages" do
     begin
       price, labels, tracking_number = @fedex.label({
@@ -147,9 +147,9 @@ describe Fedex do
           }
         ]
       })
-    # rescue Fedex::FedexError => e
+      # rescue Fedex::FedexError => e
     end
-
+  
     price.should > 5000
     tracking_number.length.should > 8
     get_requests
@@ -158,8 +158,7 @@ describe Fedex do
     xml_same?(@requests[0], ship_fixture_file(:requests, 'intl_multi_package_1.xml')).should be_true
     xml_same?(@requests[1], ship_fixture_file(:requests, 'intl_multi_package_2.xml')).should be_true
   end
- 
- 
+
   it "should return the same price from shipping and rate requests" do
     packages = [
       {
@@ -176,14 +175,14 @@ describe Fedex do
         ]
       }
     ]
-
+ 
     quoted_price = @fedex.price({
       :shipper => shipper_address,
       :recipient => intl_recipient_address,
       :service_type => 'INTERNATIONAL_ECONOMY',
       :packages => packages
     })
-
+ 
     shipped_price, labels, tracking_number = @fedex.label({
       :shipper => shipper_address,
       :recipient => intl_recipient_address,
@@ -192,5 +191,5 @@ describe Fedex do
     })
     
     shipped_price.should == quoted_price
- end
+  end
 end

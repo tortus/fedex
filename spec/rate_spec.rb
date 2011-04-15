@@ -64,7 +64,7 @@ describe Fedex do
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'domestic_one_package_all_with_dimensions.xml')).should be_true
   end
-
+  
   it "should generate XML correctly for single domestic package with inline (old-style) API searching all available rates" do
     begin
       price = @fedex.price({
@@ -144,7 +144,7 @@ describe Fedex do
     end
   
     price.class.name.should == 'Fixnum'
-    price.should > 3000 # intl shipment should be more expensive
+    price.should > 1000 # intl shipment should be more expensive
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'intl_one_package_ground.xml')).should be_true    
   end
@@ -160,7 +160,7 @@ describe Fedex do
     end
     
     price.class.name.should == 'Hash'
-    price['FEDEX_GROUND'].should > 3000
+    price['FEDEX_GROUND'].should > 1000
     get_requests
     xml_same?(@requests.first, rate_fixture_file(:requests, 'intl_one_package_all.xml')).should be_true
   end
