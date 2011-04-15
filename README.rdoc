@@ -4,7 +4,7 @@ This plugin implements FedEx's Web Services API, allowing you to get shipping ra
 
 === Updates over other repos
 
-This particular fork has been extended to allow multiple-package shipments and support international shipping. It's also been updated to support version 8 of the API (the latest as of May 2010).
+This particular fork is a minor bugfix over philsmy's fork that was updated to support version 9 of the API (the latest as of April 2011).
 
 == API Changes
 
@@ -29,7 +29,7 @@ If you want to ship one or more packages in a group, however, you can also use t
     ],
   })
 
-Some of the constants have also changed between version 5 and 8, so if you're upgrading check ship_constants.rb and rate_constants.rb to ensure your constant hasn't been renamed.
+Some of the constants have also changed between version 5 and 9, so if you're upgrading check ship_constants.rb and rate_constants.rb to ensure your constant hasn't been renamed.
 
 === Return values
 
@@ -56,11 +56,11 @@ and then run:
   
 To install the plugin itself, simply navigate to your project directory and run:
 
-  script/plugin install git://github.com/kdonovan/fedex.git
+  script/plugin install git://github.com/dazl/fedex.git
 
 ==== IMPORTANT: Obtaining WSDLs
 
-Due to copyright reasons we cannot distribute the associated WSDL files; you'll need to register for a {developer account}[http://www.fedex.com/developer] with Fedex to begin working on your integration.  Once you've created your account head to the "Get Started" section, where you can find documentation and the individual WSDLs for all of the available services.  For our purposes you need only two: Rate (<tt>RateService_v8.wsdl</tt> as of May 2010) and Ship (<tt>ShipService_v8.wsdl</tt> as of May 2010). Download these WSDLs and put them in the <tt>vendor/plugins/fedex/lib/wsdl/</tt> directory.
+Due to copyright reasons we cannot distribute the associated WSDL files; you'll need to register for a {developer account}[http://www.fedex.com/developer] with Fedex to begin working on your integration.  Once you've created your account head to the "Get Started" section, where you can find documentation and the individual WSDLs for all of the available services.  For our purposes you need only two: Rate (<tt>RateService_v9.wsdl</tt> as of May 2010) and Ship (<tt>ShipService_v9.wsdl</tt> as of April 2011). Download these WSDLs and put them in the <tt>vendor/plugins/fedex/lib/wsdl/</tt> directory.
 
 == Usage
 
@@ -161,9 +161,10 @@ And that's it!  There are quite a few additional configuration options which you
 * Elliot Winkler, elliot.winkler [at] gmail [dot] com (fork for v5 compatibility)
 * Laurence A. Lee, lalee [at] pobox [dot] com (additional fixes for v5 compatibility)
 * Kali Donovan (v8 compatibility, multiple package support, international shipping)
+* Phil Smy (fork for v9 compatibility)
+* Davide Zilioli (additional fixes for v9 compatibility)
 
 == Copyright/License
 
-Copyright (c) 2010 Kali Donovan
 
 This plugin is made available under the MIT license.
