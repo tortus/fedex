@@ -35,7 +35,9 @@ module Fedex #:nodoc:
       :package                 => [ ],
       :international_package   => [ :commodities ],
       :contact                 => [ :name, :phone_number ],
+      :contact_for_rate        => [ ],
       :address                 => [ :country, :street, :city, :state, :zip ],
+      :address_for_rate        => [ :country, :zip ],
       :ship_cancel             => [ :tracking_number ],
       :commodity               => [ :weight, :unit_price ]
     }
@@ -282,6 +284,14 @@ module Fedex #:nodoc:
     alias :cancel_shipment :cancel
 
     # private
+    
+    def check_location_options(side, options)
+      suffix = :price == @kind ? "_for_rate" : ""
+      
+      check_required_options(("contact" + suffix).to_sym, options[side][:contact])
+      check_required_options(("address" + suffix).to_sym, options[side][:address])
+      check_two_letter_country_code(side, options)
+    end
 
 
     def check_shipping_options(options)
@@ -290,15 +300,8 @@ module Fedex #:nodoc:
       # Check overall options
       check_required_options(@kind, options)
 
-      # Check Address Options
-      check_required_options(:contact, options[:shipper][:contact])
-      check_required_options(:address, options[:shipper][:address])
-      check_two_letter_country_code(:shipper, options)
-
-      # Check Contact Options
-      check_required_options(:contact, options[:recipient][:contact])
-      check_required_options(:address, options[:recipient][:address])
-      check_two_letter_country_code(:recipient, options)
+      check_location_options(:shipper, options)      
+      check_location_options(:recipient, options)
       
       check_type = international_shipment?(options) && :label == @kind ? :international_package : :package
       first_package = if options[:packages]
@@ -347,6 +350,7 @@ module Fedex #:nodoc:
       driver = create_driver(:rate)
       result = driver.getRates(rate_request_details)
       
+
       msg = error_msg(result, false)
       if successful?(result) && msg !~ /There are no valid services available/
         reply_details = result.rateReplyDetails
@@ -367,7 +371,7 @@ module Fedex #:nodoc:
       {
         :WebAuthenticationDetail => { :UserCredential => { :Key => @auth_key, :Password => @security_code } },
         :ClientDetail => { :AccountNumber => @account_number, :MeterNumber => @meter_number },
-        :Version => WS_VERSION.merge({:ServiceId => service.to_s})
+        :Version => {:ServiceId => service.to_s}.merge(WS_VERSION)
       }
     end
 
@@ -483,11 +487,11 @@ module Fedex #:nodoc:
               :PhoneNumber => shipper_contact[:phone_number]
             },
             :Address => {
-              :CountryCode => shipper_address[:country],
               :StreetLines => shipper_address[:street],
               :City => shipper_address[:city],
               :StateOrProvinceCode => shipper_address[:state],
-              :PostalCode => shipper_address[:zip]
+              :PostalCode => shipper_address[:zip],
+              :CountryCode => shipper_address[:country]
             }
           },
           :Recipient => {
@@ -496,11 +500,11 @@ module Fedex #:nodoc:
               :PhoneNumber => recipient_contact[:phone_number]
             },
             :Address => {
-              :CountryCode => recipient_address[:country],
               :StreetLines => recipient_address[:street],
               :City => recipient_address[:city],
               :StateOrProvinceCode => recipient_address[:state],
               :PostalCode => recipient_address[:zip],
+              :CountryCode => recipient_address[:country],
               :Residential => residential
             }
           },

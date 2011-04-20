@@ -131,6 +131,36 @@ def intl_recipient_address
   {:contact => person, :address => origin}
 end
 
+def shipper_address_country_and_zip_only 
+  person = {
+  }
+  origin = {
+    :zip => 78701,
+    :country => 'US'
+  }
+  {:contact => person, :address => origin}
+end
+
+def recipient_address_country_and_zip_only
+  person = {
+  }
+  origin = {
+    :zip => 78701,
+    :country => 'US'
+  }
+  {:contact => person, :address => origin}
+end
+
+def intl_recipient_address_country_and_zip_only
+  person = {
+  }
+  origin = {
+    :zip => 'V5H4J2',
+    :country => 'CA'
+  }
+  {:contact => person, :address => origin}
+end
+
 def commodity(name, weight, unit_price, quantity = 1)
   {
     :name => name,

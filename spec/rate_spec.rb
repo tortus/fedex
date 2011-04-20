@@ -188,4 +188,36 @@ describe Fedex do
     xml_same?(@requests.first, rate_fixture_file(:requests, 'intl_multi_package_ground.xml')).should be_true
   end
   
+  it "should still quote a price if only country and zip code are provided for shipper and recipient" do
+    begin
+      price = @fedex.price({
+        :shipper => shipper_address_country_and_zip_only,
+        :recipient => recipient_address_country_and_zip_only,
+        :weight => 4.3125,
+        :service_type => 'FEDEX_GROUND'
+      })
+    # rescue Fedex::FedexError
+    end
+
+    price.class.name.should == 'Fixnum'
+    price.should > 500 
+
+  end
+  
+  it "should still quote a price if only country and zip code are provided for shipper and international recipient" do
+    begin
+      price = @fedex.price({
+        :shipper => shipper_address_country_and_zip_only,
+        :recipient => intl_recipient_address_country_and_zip_only,
+        :weight => 4.3125,
+        :service_type => 'FEDEX_GROUND'
+      })
+    # rescue Fedex::FedexError
+    end
+
+    price.class.name.should == 'Fixnum'
+    price.should > 1000
+
+  end
+  
 end
