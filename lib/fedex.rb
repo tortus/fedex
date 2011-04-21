@@ -481,6 +481,11 @@ module Fedex #:nodoc:
 
       opts = common_options(service||:crs).merge(
         :RequestedShipment => {
+          :ShipTimestamp => time,
+          :DropoffType => @dropoff_type,
+          :ServiceType => service_type,
+          :PackagingType => @packaging_type,
+          :TotalWeight => multi_options[:first_package] ? { :Units => @weight_units, :Value => total_weight } : nil,
           :Shipper => {
             :Contact => {
               :PersonName => shipper_contact[:name],
@@ -515,25 +520,20 @@ module Fedex #:nodoc:
               :CountryCode => shipper_address[:country]
             }
           },
+          :CustomsClearanceDetail => international_shipment?(options) ? international_shipping_options( package ) : nil,
           :LabelSpecification => {
             :LabelFormatType => @label_type,
             :ImageType => @label_image_type,
             :LabelStockType => @label_stock_type
           },
           :RateRequestTypes => @rate_request_type,
+          :EdtRequestType => international_shipment?(options) ? @intl[:edt_request_type] : nil,
           :PackageCount => count,
-          :MasterTrackingId => multi_options[:master_tracking_number] ? {:TrackingNumber => multi_options[:master_tracking_number]} : nil,
-          :ShipTimestamp => time,
-          :DropoffType => @dropoff_type,
-          :ServiceType => service_type,
-          :PackagingType => @packaging_type,
           :PackageDetail => Fedex::ShipConstants::RequestedPackageDetailTypes::INDIVIDUAL_PACKAGES,
-          :PackageDetailSpecified => true,
-          :TotalWeight => multi_options[:first_package] ? { :Units => @weight_units, :Value => total_weight } : nil,
-          :PreferredCurrency => @currency,
           :RequestedPackageLineItems => package_line_items(service, options[:packages], package, multi_options),
-          :CustomsClearanceDetail => international_shipment?(options) ? international_shipping_options( package ) : nil,
-          :EdtRequestType => international_shipment?(options) ? @intl[:edt_request_type] : nil
+          :MasterTrackingId => multi_options[:master_tracking_number] ? {:TrackingNumber => multi_options[:master_tracking_number]} : nil,
+          :PackageDetailSpecified => true,
+          :PreferredCurrency => @currency
         }
       )
       
