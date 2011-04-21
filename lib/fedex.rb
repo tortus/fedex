@@ -381,7 +381,7 @@ module Fedex #:nodoc:
       return true if 2 == country.length
       
       err_msg = "Country '#{country}' must be provided as a two-letter ISO country code"
-      raise MissingInformationError.new("Error in #{type.to_s.humanize} Address: #{err_msg}")
+      raise MissingInformationError.new("Error in #{type.to_s} Address: #{err_msg}")
     end
 
     # Checks the supplied options for a given method or field and throws an exception if anything is missing
@@ -395,7 +395,7 @@ module Fedex #:nodoc:
       end
 
       unless missing.empty?
-        raise MissingInformationError.new("Missing #{missing.collect{|m| ":#{m}"}.join(', ')} for #{option_set_name.to_s.humanize.downcase}")
+        raise MissingInformationError.new("Missing #{missing.collect{|m| ":#{m}"}.join(', ')} for #{option_set_name.to_s.downcase}")
       end
     end
 

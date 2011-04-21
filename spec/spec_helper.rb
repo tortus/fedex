@@ -24,7 +24,6 @@ rescue LoadError
 end
 
 require 'rubygems'
-require 'active_support'
 
 require 'soap/wsdlDriver'
 require 'cgi'
