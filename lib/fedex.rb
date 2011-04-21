@@ -167,7 +167,7 @@ module Fedex #:nodoc:
     def price(options = {})
       @kind = :price
       international_shipment?(options) ? set_international_option_defaults(options) : set_defaults_for_packages(options)
-      first_package = check_shipping_options(options)
+      first_package = check_shipping_options(:crs, options)
   
       # Build shipment details for rate request
       rate_request_details = build_shipment_options(:crs, options, first_package, :first_package => true)
@@ -231,7 +231,7 @@ module Fedex #:nodoc:
       @kind = :label
       single_package = options[:packages].nil? || options[:packages].length == 1
       international_shipment?(options) ? set_international_option_defaults(options) : set_defaults_for_packages(options)
-      first_package = check_shipping_options(options)
+      first_package = check_shipping_options(:ship, options)
 
       # Build shipment options
       shipment_details = build_shipment_options(:ship, options, first_package, :first_package => true)
@@ -285,8 +285,8 @@ module Fedex #:nodoc:
 
     # private
     
-    def check_location_options(side, options)
-      suffix = :price == @kind ? "_for_rate" : ""
+    def check_location_options(side, service, options)
+      suffix = service == :crs ? "_for_rate" : ""
       
       check_required_options(("contact" + suffix).to_sym, options[side][:contact])
       check_required_options(("address" + suffix).to_sym, options[side][:address])
@@ -294,14 +294,14 @@ module Fedex #:nodoc:
     end
 
 
-    def check_shipping_options(options)
+    def check_shipping_options(service, options)
       puts options.inspect if $DEBUG
 
       # Check overall options
       check_required_options(@kind, options)
 
-      check_location_options(:shipper, options)      
-      check_location_options(:recipient, options)
+      check_location_options(:shipper, service, options)      
+      check_location_options(:recipient, service, options)
       
       check_type = international_shipment?(options) && :label == @kind ? :international_package : :package
       first_package = if options[:packages]
