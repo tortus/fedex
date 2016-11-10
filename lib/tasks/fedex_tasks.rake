@@ -1,6 +1,6 @@
 desc 'Autogenerates the rate_constants and ship_constants files from the specified version of the API'
 task :generate_constants_file do
-  path = ENV['WSDL_PATH'] || File.join(File.dirname(__FILE__), '..', 'lib', 'wsdl')
+  path = ENV['WSDL_PATH'] || File.join(File.dirname(__FILE__), '..', 'wsdl')
   version = ENV['VERSION'] || 9
   first_line = {
     :ship => ENV['SHIP_FIRST'] || '# {http://fedex.com/ws/ship/v9}AdditionalLabelsType',  # First class definition to keep in ShipServiceDefinitions.rb
