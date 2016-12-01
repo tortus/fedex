@@ -4,3 +4,6 @@ lib/wsdl
 auth_info.rb
 .rvmrc
 .idea
+.ruby-version
+Gemfile.lock
+.bundle

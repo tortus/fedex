@@ -1,22 +1,32 @@
-require 'rake'
-require 'rake/testtask'
-require 'rake/rdoctask'
+task :default => [:test]
 
-desc 'Default: run unit tests.'
-task :default => :test
+PKG_NAME = "fedex"
+PKG_VERSION = "4.2.0"
 
-desc 'Test the fedex plugin.'
-Rake::TestTask.new(:test) do |t|
-  t.libs << 'lib'
-  t.pattern = 'test/**/*_test.rb'
-  t.verbose = true
+PKG_DIR = "release/#{PKG_NAME}-#{PKG_VERSION}"
+
+task :clean do
+  rm_rf "release"
 end
 
-desc 'Generate documentation for the fedex plugin.'
-Rake::RDocTask.new(:rdoc) do |rdoc|
-  rdoc.rdoc_dir = 'rdoc'
-  rdoc.title    = 'Fedex'
-  rdoc.options << '--line-numbers' << '--inline-source'
-  rdoc.rdoc_files.include('README')
-  rdoc.rdoc_files.include('lib/**/*.rb')
+task :setup_directories do
+  mkpath "release"
+end
+
+
+task :checkout_release => :setup_directories do
+  rm_rf PKG_DIR
+  revision = ENV["REVISION"] || "HEAD"
+  sh "svn export -r #{revision} . #{PKG_DIR}"
+end
+
+task :release_docs => :checkout_release do
+  sh "cd #{PKG_DIR}; rdoc lib"
+end
+
+task :package => [:checkout_release, :release_docs] do
+  sh "cd release; tar czf #{PKG_NAME}-#{PKG_VERSION}.tar.gz #{PKG_NAME}-#{PKG_VERSION}"
+end
+
+task :test do
 end

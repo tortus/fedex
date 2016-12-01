@@ -1,15 +1,15 @@
 # Copyright (c) 2010 Kali Donovan
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -18,15 +18,22 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+require 'soap/wsdlDriver'
+require 'cgi'
+require 'base64'
+
+require 'rate_constants'
+require 'ship_constants'
+
 module Fedex #:nodoc:
-  
+
   class MissingInformationError < StandardError; end #:nodoc:
   class CalculationMismatchError < StandardError; end #:nodoc:
   class FedexError < StandardError; end #:nodoc
-  
+
   # Provides access to Fedex Web Services
   class Base
-    
+
     # Defines the required parameters for various methods
     REQUIRED_OPTIONS = {
       :base                    => [ :auth_key, :security_code, :account_number, :meter_number ],
@@ -41,20 +48,20 @@ module Fedex #:nodoc:
       :ship_cancel             => [ :tracking_number ],
       :commodity               => [ :weight, :unit_price ]
     }
-    
+
     # Defines the relative path to the WSDL files.  Defaults assume lib/wsdl under plugin directory.
     WSDL_PATHS = {
       :rate => 'wsdl/RateService_v9.wsdl',
       :ship => 'wsdl/ShipService_v9.wsdl',
     }
-    
+
     # Defines the Web Services version implemented.
     WS_VERSION = { :Major => 9, :Intermediate => 0, :Minor => 0 }
-    
+
     SUCCESSFUL_RESPONSES = ['SUCCESS', 'WARNING', 'NOTE'] #:nodoc:
-    
+
     DIR = File.dirname(__FILE__)
-    
+
     attr_accessor :auth_key,
                   :security_code,
                   :account_number,
@@ -67,9 +74,9 @@ module Fedex #:nodoc:
                   :sender,
                   :debug,
                   :environment
-    
+
     # Initializes the Fedex::Base class, setting defaults where necessary.
-    # 
+    #
     #  fedex = Fedex::Base.new(options = {})
     #
     # === Example:
@@ -98,16 +105,16 @@ module Fedex #:nodoc:
     #   :linear_units       - One of Fedex::ShipConstants::LinearUnits.  Defaults to LinearUnits::IN
     #   :currency           - Defaults to 'USD'
     #   :debug              - Enable or disable debug (wiredump) output.  Defaults to false.
-    #   :environment        - Connect to production or development FedEx servers. Defaults to production if RAILS_ENV == production, 
+    #   :environment        - Connect to production or development FedEx servers. Defaults to production if RAILS_ENV == production,
     #                         else development
     def initialize(options = {})
       check_required_options(:base, options)
-      
+
       @auth_key           = options[:auth_key]
       @security_code      = options[:security_code]
       @account_number     = options[:account_number]
       @meter_number       = options[:meter_number]
-                        
+
       @dropoff_type       = options[:dropoff_type]      || Fedex::ShipConstants::DropoffTypes::REGULAR_PICKUP
       @packaging_type     = options[:packaging_type]    || Fedex::ShipConstants::PackagingTypes::YOUR_PACKAGING
       @label_type         = options[:label_type]        || Fedex::ShipConstants::LabelFormatTypes::COMMON2D
@@ -121,13 +128,13 @@ module Fedex #:nodoc:
       @debug              = options[:debug]             || false
       @wiredump           = options[:wiredump]          || STDOUT
       @environment        = options[:environment]       || (defined?(RAILS_ENV) && 'production' == RAILS_ENV ? 'production' : 'development')
-      @environment        = @environment.to_sym      
+      @environment        = @environment.to_sym
     end
-    
+
     # Gets a rate quote from Fedex.
     #
     #   fedex = Fedex::Base.new(options)
-    #   
+    #
     #   single_price = fedex.price(
     #     :shipper => { ... },
     #     :recipient => { ... },
@@ -168,7 +175,7 @@ module Fedex #:nodoc:
       @kind = :price
       international_shipment?(options) ? set_international_option_defaults(options) : set_defaults_for_packages(options)
       first_package = check_shipping_options(:crs, options)
-  
+
       # Build shipment details for rate request
       rate_request_details = build_shipment_options(:crs, options, first_package, :first_package => true)
       process_rate_request( rate_request_details )
@@ -182,7 +189,7 @@ module Fedex #:nodoc:
         next unless rate_detail.rateType == "PAYOR_#{@rate_request_type}_PACKAGE" || rate_detail.rateType == "PAYOR_#{@rate_request_type}_SHIPMENT"
         return (rate_detail.totalNetCharge.amount.to_f * 100).to_i
       end
-      
+
       raise "Couldn't find Fedex price in response!"
     end
     alias :find_rates :price
@@ -194,14 +201,14 @@ module Fedex #:nodoc:
     #
     # Returns the actual price for the label, the Base64-decoded label in the format specified in Fedex::Base,
     # and the tracking_number for the shipment.
-    # 
+    #
     # Can ship multiple packages in a single MPS shipment by passing multiples values to the :packages option.
-    # MPS shipments will return an array of all labels as the second return value and the master tracking 
+    # MPS shipments will return an array of all labels as the second return value and the master tracking
     # number (which can be used to track all packages) as the third.
     #
     # If shipping internationally, each packages contains one or more commodities with various required and
     # optional options.
-    # 
+    #
     # === Required options for label
     #   :shipper      - A hash containing contact information and an address for the shipper.  (See below.)
     #   :recipient    - A hash containing contact information and an address for the recipient.  (See below.)
@@ -284,10 +291,10 @@ module Fedex #:nodoc:
     alias :cancel_shipment :cancel
 
     # private
-    
+
     def check_location_options(side, service, options)
       suffix = service == :crs ? "_for_rate" : ""
-      
+
       check_required_options(("contact" + suffix).to_sym, options[side][:contact])
       check_required_options(("address" + suffix).to_sym, options[side][:address])
       check_two_letter_country_code(side, options)
@@ -300,16 +307,16 @@ module Fedex #:nodoc:
       # Check overall options
       check_required_options(@kind, options)
 
-      check_location_options(:shipper, service, options)      
+      check_location_options(:shipper, service, options)
       check_location_options(:recipient, service, options)
-      
+
       check_type = international_shipment?(options) && :label == @kind ? :international_package : :package
       first_package = if options[:packages]
         options[:packages].each do |p|
           p[:weight] ||= (p[:commodities] || []).sum{|c| c[:weight]}
           check_required_options(check_type, p)
         end
-        
+
         options[:packages].first
       else # Check old-style inline API
         check_required_options(check_type, options)
@@ -325,31 +332,31 @@ module Fedex #:nodoc:
       msg = error_msg(result, false)
       if successful && msg !~ /There are no valid services available/
         xml = result.completedShipmentDetail
-        
+
         # Grab package level details if available, or else shipmentment level
         charge = if xml.completedPackageDetails.respond_to?(:packageRating)
-          pre = xml.completedPackageDetails.packageRating.packageRateDetails  
+          pre = xml.completedPackageDetails.packageRating.packageRateDetails
           ((pre.class == Array ? pre[0].netCharge.amount.to_f : pre.netCharge.amount.to_f) * 100).to_i
         elsif xml.respond_to?(:shipmentRating)
           pre = xml.shipmentRating.shipmentRateDetails
           ((pre.class == Array ? pre[0].totalNetFedExCharge.amount.to_f : pre.totalNetFedExCharge.amount.to_f) * 100).to_i
         else 0.0
         end
-        tracking_number = xml.completedPackageDetails.trackingIds.trackingNumber        
+        tracking_number = xml.completedPackageDetails.trackingIds.trackingNumber
         master_tracking_number = xml.respond_to?(:masterTrackingId) ? xml.masterTrackingId.trackingNumber : nil
-        
+
         label = Base64.decode64(xml.completedPackageDetails.label.parts.image)
         [charge, label, tracking_number, master_tracking_number]
       else
         raise FedexError.new("Unable to get label from Fedex: #{msg}")
       end
     end
-    
-    # Process the rate request 
+
+    # Process the rate request
     def process_rate_request( rate_request_details )
       driver = create_driver(:rate)
       result = driver.getRates(rate_request_details)
-      
+
 
       msg = error_msg(result, false)
       if successful?(result) && msg !~ /There are no valid services available/
@@ -364,7 +371,7 @@ module Fedex #:nodoc:
         raise FedexError.new("Unable to retrieve price from Fedex: #{msg}")
       end
     end
-    
+
     # Options that go along with each request
     # service - :crs or :ship
     def common_options(service)
@@ -379,7 +386,7 @@ module Fedex #:nodoc:
     def check_two_letter_country_code(type, options, country = nil)
       country ||= options[type][:address][:country]
       return true if 2 == country.length
-      
+
       err_msg = "Country '#{country}' must be provided as a two-letter ISO country code"
       raise MissingInformationError.new("Error in #{type.to_s} Address: #{err_msg}")
     end
@@ -402,15 +409,15 @@ module Fedex #:nodoc:
     # Creates and returns a driver for the requested action
     def create_driver(name)
       path = File.expand_path(DIR + '/' + WSDL_PATHS[name])
-      
+
       raise MissingInformationError.new("Missing WSDL file at #{path}") unless File.exists?(path)
-            
+
       wsdl = SOAP::WSDLDriverFactory.new(path)
       driver = wsdl.create_rpc_driver
       driver.proxy.endpoint_url = if :production == @environment then "https://gateway.fedex.com:443/web-services"
       else "https://gatewaybeta.fedex.com:443/web-services"
       end
-      
+
       # /s+(1000|0|9c9|fcc)\s+/ => ""
       driver.wiredump_dev = @wiredump if @debug
 
@@ -536,11 +543,11 @@ module Fedex #:nodoc:
           :PreferredCurrency => @currency
         }
       )
-      
-      
+
+
       opts
     end
-    
+
     # If shipping, each package gets its own request. Rate requests bundle them all into one
     def package_line_items(service, all_packages, package, more = {})
       if :ship == service || all_packages.nil?
@@ -549,7 +556,7 @@ module Fedex #:nodoc:
         all_packages.collect{|p| package_line_item(p, more) }
       end
     end
-    
+
     def package_line_item(package, more = {})
       line_item = {
         :SequenceNumber => more[:sequence] || 1,
@@ -561,7 +568,7 @@ module Fedex #:nodoc:
           :SpecialServiceTypes => []
         }
       }
-      
+
       if package[:length] && package[:height] && package[:width]
         line_item[:Dimensions] = {
           :Length => package[:length],
@@ -582,7 +589,7 @@ module Fedex #:nodoc:
           }
         )
       end
-      
+
       if package[:dangerous_goods]
         dangerous_goods_type = package[:dangerous_goods_type] || Fedex::ShipConstants::PackageSpecialServiceTypes::DANGEROUS_GOODS
         line_item[:SpecialServicesRequested][:SpecialServiceTypes] << dangerous_goods_type
@@ -593,20 +600,20 @@ module Fedex #:nodoc:
           }
         )
       end
-      
+
       line_item
     end
 
     def international_shipment?(options)
       return nil unless options[:shipper] && options[:shipper][:address]
       return nil unless options[:recipient] && options[:recipient][:address]
-      
+
       shipper_country_is_usa     = options[:shipper][:address][:country][/us/i]
       recipient_country_is_usa   = options[:recipient][:address][:country][/us/i]
-      
+
       !shipper_country_is_usa || !recipient_country_is_usa
     end
-    
+
     # Return the options required for shipping internationally
     def international_shipping_options(package)
       {
@@ -633,11 +640,11 @@ module Fedex #:nodoc:
               :AccountNumber => @intl[:duties_payor_acct],
               :CountryCode => @intl[:duties_payor_country]
           }
-        },        
+        },
         :Commodities => intl_commodity_line_items(package)
       }
     end
-    
+
     def intl_commodity_line_items(package)
       (package[:commodities] || []).collect do |commodity|
         check_required_options(:commodity, commodity)
@@ -665,7 +672,7 @@ module Fedex #:nodoc:
           :ExportLicenseNumber => commodity[:export_license_number],
           :ExportLicenseExpirationDate => commodity[:export_license_expiration_date]
         }
-        
+
         (commodity[:excise_conditions] || []).each do |ec|
           line_item[:ExciseConditions] ||= []
           line_item[:ExciseConditions] << {
@@ -676,7 +683,7 @@ module Fedex #:nodoc:
 
         line_item
       end
-      
+
     end
 
     def set_international_option_defaults(options)
@@ -687,15 +694,15 @@ module Fedex #:nodoc:
       @intl[:freight_charge]	            = options[:freight_charge]                        ||  0.00
       @intl[:insurance_charge]	          = options[:insurance_charge]                      ||  0.00
       @intl[:regulatory_controls]	        = options[:regulatory_controls]                   ||  nil
-      @intl[:purpose]	                    = options[:purpose]                               ||  Fedex::ShipConstants::PurposeOfShipmentTypes::SOLD      
+      @intl[:purpose]	                    = options[:purpose]                               ||  Fedex::ShipConstants::PurposeOfShipmentTypes::SOLD
       @intl[:duties_payment_type]         = options[:duties_payment_type]                   ||  @payment_type
       @intl[:duties_payor_acct]           = options[:duties_payor_acct]                     ||  @account_number
-      @intl[:duties_payor_country]        = options[:duties_payor_country]                  ||  options[:shipper][:address][:country]      
+      @intl[:duties_payor_country]        = options[:duties_payor_country]                  ||  options[:shipper][:address][:country]
       @intl[:edt_request_type]            = options[:dont_estimate_tax_and_duties] ?            ShipConstants::EdtRequestTypes::NONE : ShipConstants::EdtRequestTypes::ALL
-     
+
       # Checking commodities + calculating total customs value
-      total_weight, total_value = set_defaults_for_packages( options )      
-      
+      total_weight, total_value = set_defaults_for_packages( options )
+
       customs_value = total_value + @intl[:freight_charge] + @intl[:insurance_charge] # + Add "miscellaneous" charges, if any. Docs don't specify where to get these...
       @intl[:total_customs_value]	        = options[:total_customs_value]                   || customs_value
       unless @intl[:total_customs_value] == customs_value
@@ -707,9 +714,9 @@ module Fedex #:nodoc:
       packages = options[:packages] && !options[:packages].empty? ? options[:packages] : options
       packages ||= []
       packages = [packages] unless packages.is_a?(Array)
-      
+
       total_weight = 0; total_value = 0
-      packages.each do |package| 
+      packages.each do |package|
         pkg_weight, pkg_value = set_defaults_for_commodities(package, international_shipment?(options))
         package[:weight] ||= pkg_weight
         unless pkg_weight == package[:weight] || (package[:weight] && pkg_weight.zero?)
@@ -719,7 +726,7 @@ module Fedex #:nodoc:
         unless package[:weight] > 0
           raise MissingInformationError.new("Package weight must be larger than 0 for #{package.inspect}")
         end
-        
+
         total_weight += pkg_weight
         total_value += pkg_value
       end
@@ -735,7 +742,7 @@ module Fedex #:nodoc:
         commodity[:quantity]                ||= 1
         commodity[:number_of_pieces_units]  ||= 'EA'  # Could be 'EA' or 'DZ'
         commodity[:customs_value]             = commodity[:unit_price] * commodity[:quantity].to_i
-        
+
         if commodity[:customs_value].zero?
           raise MissingInformationError.new("Customs value must be larger than 0 for each commodity to be shipped. Did you provide a 0 unit_price?")
         end
