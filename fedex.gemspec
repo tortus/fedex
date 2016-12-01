@@ -5,13 +5,13 @@ require 'fedex/version'
 
 # Describe your gem and declare its dependencies:
 Gem::Specification.new do |s|
-  s.name        = 'file_column'
+  s.name        = 'fedex'
   s.version     = Fedex::VERSION
-  s.authors     = ['Tortus Tek']
+  s.authors     = ['Tortus Tek, Inc.']
   s.email       = ['programming@tortus.com']
   s.homepage    = 'https://www.tortus.com'
   s.summary     = 'Tortus legacy fedex gem'
-  s.description = 'Tortus legacy fedex gem'
+  s.description = 'Tortus legacy fedex gem, forked from an even older gem'
   s.license     = 'MIT'
 
   s.files       = `git ls-files`.split("\n")
